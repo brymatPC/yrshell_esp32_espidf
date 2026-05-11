@@ -9,7 +9,7 @@ static bool m_resultsReceived = false;
 static BLEScanResults m_results;
 
 const char BleConnection::s_PREF_NAMESPACE[] = "ble";
-const uint16_t BleConnection::s_DEFAULT_SCAN_INTERVAL_MS = 1000;
+const uint16_t BleConnection::s_DEFAULT_SCAN_INTERVAL_MS = 45000;
 const uint16_t BleConnection::s_DEFAULT_SCAN_WINDOW_MS = 1000;
 const uint32_t BleConnection::s_DEFAULT_SCAN_DURATION_SEC = 10000;
 const bool BleConnection::s_DEFAULT_SCAN_ACTIVE = false;
@@ -58,7 +58,7 @@ void BleConnection::setup() {
     uint32_t _handle;
     uint8_t temp;
     uint16_t temp16;
-    size_t len;
+    size_t len = BLE_ADDR_LEN;
     err = nvs_open(s_PREF_NAMESPACE, NVS_READONLY, &_handle);
     if(err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to open nvs partition, err: %lu", err);

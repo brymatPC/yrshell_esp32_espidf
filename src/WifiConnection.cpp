@@ -3,6 +3,8 @@
 #include "esp_mac.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
+#include "nvs.h"
+#include "nvs_flash.h"
 
 #include <stdio.h>
 
@@ -16,13 +18,13 @@
 static const char* TAG = "WifiCon";
 
 const char WifiConnection::s_PREF_NAMESPACE[] = "wifi";
-const uint8_t WifiConnection::s_DEFAULT_HOST_NAME[] = "esp32";
-const uint8_t WifiConnection::s_DEFAULT_HOST_PASSWORD[] = "espPassword";
+const char WifiConnection::s_DEFAULT_HOST_NAME[] = "esp32";
+const char WifiConnection::s_DEFAULT_HOST_PASSWORD[] = "espPassword";
 // 192.168.10.2
-const uint8_t WifiConnection::s_DEFAULT_HOST_IP[] = "0x020AA8C0";
+const char WifiConnection::s_DEFAULT_HOST_IP[] = "0x020AA8C0";
 // 192.168.10.1
-const uint8_t WifiConnection::s_DEFAULT_HOST_GATEWAY[] = "0x010AA8C0";
-const uint8_t WifiConnection::s_DEFAULT_HOST_MASK[] = "0x00FFFFFF";
+const char WifiConnection::s_DEFAULT_HOST_GATEWAY[] = "0x010AA8C0";
+const char WifiConnection::s_DEFAULT_HOST_MASK[] = "0x00FFFFFF";
 
 typedef enum {
   STATE_RESET             = 0,
@@ -74,6 +76,8 @@ static bool stringToUnsignedX( const char* P, uint32_t* V) {
     return rc;
 }
 
+static bool m_scanComplete = false;
+
 static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
     if (event_id == WIFI_EVENT_AP_STACONNECTED) {
@@ -82,48 +86,12 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
     } else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) {
         wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
         ESP_LOGI(TAG, "station \"MACSTR\" leave, AID=%d, reason=%d", MAC2STR(event->mac), event->aid, event->reason);
+    } else if(event_id == WIFI_EVENT_SCAN_DONE) {
+        uint16_t count = 0;
+        esp_wifi_scan_get_ap_num(&count);
+        ESP_LOGI(TAG, "Wifi Scan complete, found %u networks", count);
+        m_scanComplete = true;
     }
-}
-
-void wifi_init_softap(void)
-{
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_ap();
-
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
-                                                        ESP_EVENT_ANY_ID,
-                                                        &wifi_event_handler,
-                                                        NULL,
-                                                        NULL));
-
-    wifi_config_t wifi_config = {
-        .ap = {
-            .ssid = WIFI_SSID,
-            .password = WIFI_PASS,
-            .ssid_len = strlen(WIFI_SSID),
-            .channel = 1,
-            .authmode = WIFI_AUTH_WPA3_PSK,
-            .max_connection = 3,
-            .pmf_cfg = {
-                    .required = true,
-            },
-            .sae_pwe_h2e = WPA3_SAE_PWE_BOTH,
-            .gtk_rekey_interval = 600,
-        },
-    };
-    if (strlen(WIFI_PASS) == 0 && wifi_config.ap.authmode != WIFI_AUTH_OWE) {
-        wifi_config.ap.authmode = WIFI_AUTH_OPEN;
-    }
-
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
-
-    ESP_LOGI(TAG, "wifi_init_softap finished. SSID:esp32 password:espPassword channel:1",);
 }
 
 WifiConnection::WifiConnection( LedDriver* led, uint32_t connectTimeout) {
@@ -152,57 +120,107 @@ WifiConnection::WifiConnection( LedDriver* led, uint32_t connectTimeout) {
 }
 
 void WifiConnection::setup() {
-    // char parserKey[16];
-    // pref.begin(s_PREF_NAMESPACE, true);
-    // if(pref.isKey("hName")) {
-    //     pref.getString("hName", m_hostName, MAX_WIFI_ENTRY_LEN);
-    // } else {
-    //     strcpy(m_hostName, s_DEFAULT_HOST_NAME);
-    // }
-    // if(pref.isKey("hPass")) {
-    //     pref.getString("hPass", m_hostPassword, MAX_WIFI_ENTRY_LEN);
-    // } else {
-    //     strcpy(m_hostPassword, s_DEFAULT_HOST_PASSWORD);
-    // }
-    // if(pref.isKey("hIp")) {
-    //     pref.getString("hIp", m_hostIp, MAX_WIFI_ENTRY_LEN);
-    // } else {
-    //     strcpy(m_hostIp, s_DEFAULT_HOST_IP);
-    // }
-    // if(pref.isKey("hGate")) {
-    //     pref.getString("hGate", m_hostGateway, MAX_WIFI_ENTRY_LEN);
-    // } else {
-    //     strcpy(m_hostGateway, s_DEFAULT_HOST_GATEWAY);
-    // }
-    // if(pref.isKey("hMask")) {
-    //     pref.getString("hMask", m_hostMask, MAX_WIFI_ENTRY_LEN);
-    // } else {
-    //     strcpy(m_hostMask, s_DEFAULT_HOST_MASK);
-    // }
-    // for(uint8_t i=0; i < MAX_WIFI_NETWORKS; i++) {
-    //     snprintf(parserKey, 16, "nName%d", i);
-    //     pref.getString(parserKey, m_networkName[i], MAX_WIFI_ENTRY_LEN);
-    //     snprintf(parserKey, 16, "nPass%d", i);
-    //     pref.getString(parserKey, m_networkPassword[i], MAX_WIFI_ENTRY_LEN);
-    // }
-    // pref.end();
+    char parserKey[16];
+    esp_err_t err;
+    uint32_t _handle;
+    size_t len = MAX_WIFI_ENTRY_LEN;
+    err = nvs_open(s_PREF_NAMESPACE, NVS_READWRITE, &_handle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open nvs partition, err: %lu", err);
+        return;
+    }
+    strcpy(m_hostName, s_DEFAULT_HOST_NAME);
+    err = nvs_get_str(_handle, "hName", m_hostName, &len);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_str fail: hName - %lu", err);
+    }
+    strcpy(m_hostPassword, s_DEFAULT_HOST_PASSWORD);
+    len = MAX_WIFI_ENTRY_LEN;
+    err = nvs_get_str(_handle, "hPass", m_hostPassword, &len);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_str fail: hPass - %lu", err);
+    }
+    strcpy(m_hostIp, s_DEFAULT_HOST_IP);
+    len = MAX_WIFI_ENTRY_LEN;
+    err = nvs_get_str(_handle, "hIp", m_hostIp, &len);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_str fail: hIp - %lu", err);
+    }
+    strcpy(m_hostGateway, s_DEFAULT_HOST_GATEWAY);
+    len = MAX_WIFI_ENTRY_LEN;
+    err = nvs_get_str(_handle, "hGate", m_hostGateway, &len);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_str fail: hGate - %lu", err);
+    }
+    strcpy(m_hostMask, s_DEFAULT_HOST_MASK);
+    len = MAX_WIFI_ENTRY_LEN;
+    err = nvs_get_str(_handle, "hMask", m_hostMask, &len);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_str fail: hMask - %lu", err);
+    }
+    for(uint8_t i=0; i < MAX_WIFI_NETWORKS; i++) {
+        snprintf(parserKey, 16, "nName%d", i);
+        len = MAX_WIFI_ENTRY_LEN;
+        err = nvs_get_str(_handle, parserKey, m_networkName[i], &len);
+        if(err != ESP_OK) {
+            ESP_LOGE(TAG, "nvs_get_str fail: %s - %lu", parserKey, err);
+        }
+        snprintf(parserKey, 16, "nPass%d", i);
+        len = MAX_WIFI_ENTRY_LEN;
+        err = nvs_get_str(_handle, parserKey, m_networkPassword[i], &len);
+        if(err != ESP_OK) {
+            ESP_LOGE(TAG, "nvs_get_str fail: %s - %lu", parserKey, err);
+        }
+    }
+    nvs_close(_handle);
 }
 void WifiConnection::save() {
-    // char parserKey[16];
-    // pref.begin(s_PREF_NAMESPACE, false);
-    // pref.putString("hName", m_hostName);
-    // pref.putString("hPass", m_hostPassword);
-    // pref.putString("hIp", m_hostIp);
-    // pref.putString("hGate", m_hostGateway);
-    // pref.putString("hMask", m_hostMask);
-    // for(uint8_t i=0; i < MAX_WIFI_NETWORKS; i++) {
-    //     snprintf(parserKey, 16, "nName%d", i);
-    //     pref.putString(parserKey, m_networkName[i]);
-    //     snprintf(parserKey, 16, "nPass%d", i);
-    //     pref.putString(parserKey, m_networkPassword[i]);
-    // }
-    // pref.end();
-    // ESP_LOGI(TAG, "Preferences updated");
+    char parserKey[16];
+    esp_err_t err;
+    uint32_t _handle;
+    err = nvs_open(s_PREF_NAMESPACE, NVS_READWRITE, &_handle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open nvs partition, err: %lu", err);
+        return;
+    }
+    err = nvs_set_str(_handle, "hName", m_hostName);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_str fail: hName - %lu", err);
+    }
+    err = nvs_set_str(_handle, "hPass", m_hostPassword);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_str fail: hPass - %lu", err);
+    }
+    err = nvs_set_str(_handle, "hIp", m_hostIp);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_str fail: hIp - %lu", err);
+    }
+    err = nvs_set_str(_handle, "hGate", m_hostGateway);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_str fail: hGate - %lu", err);
+    }
+    err = nvs_set_str(_handle, "hMask", m_hostMask);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_str fail: hMask - %lu", err);
+    }
+    for(uint8_t i=0; i < MAX_WIFI_NETWORKS; i++) {
+        snprintf(parserKey, 16, "nName%d", i);
+        err = nvs_set_str(_handle, parserKey, m_networkName[i]);
+        if(err != ESP_OK) {
+            ESP_LOGE(TAG, "nvs_set_str fail: %s -  %lu", parserKey, err);
+        }
+        snprintf(parserKey, 16, "nPass%d", i);
+        err = nvs_set_str(_handle, parserKey, m_networkPassword[i]);
+        if(err != ESP_OK) {
+            ESP_LOGE(TAG, "nvs_set_str fail: %s -  %lu", parserKey, err);
+        }
+    }
+    err = nvs_commit(_handle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_commit fail: %lu", err);
+    }
+    nvs_close(_handle);
+    ESP_LOGI(TAG, "Preferences updated");
 }
 void WifiConnection::tryReconnect() {
   if(m_state == STATE_IDLE) {
@@ -246,7 +264,7 @@ void WifiConnection::setNetworkPassword( uint8_t index, const char* networkPassw
     strncpy(m_networkPassword[index], networkPassword, MAX_WIFI_ENTRY_LEN);
 }
 void WifiConnection::changeState( uint8_t state) {
-  ESP_LOGI(TAG, "Change state from %u to %u", m_state, state);
+  ESP_LOGD(TAG, "Change state from %u to %u", m_state, state);
   m_state = state;
 }
 
@@ -349,15 +367,13 @@ void WifiConnection::slice( ) {
     // break;
 
     case STATE_INIT_AP:
-      // WiFi.mode(WIFI_STA);
-      // WiFi.disconnect(  );
       err = esp_wifi_disconnect();
       if (err != ESP_OK) {
           ESP_LOGE(TAG, "STA disconnect failed! %lu", err);
       }
+      configBasicAp();
       m_timer.setInterval( 100);
-      //changeState( STATE_NETWORK_SCAN);
-      changeState( STATE_CONFIGURE_AP);
+      changeState( STATE_NETWORK_SCAN);
       m_maxRssi = -1024;
       m_maxRssiIndex = 0;
       if( m_led) {
@@ -366,63 +382,61 @@ void WifiConnection::slice( ) {
 
     break;
 
-    // case STATE_NETWORK_SCAN:
-    //   if( m_timer.hasIntervalElapsed() ) {
-    //     WiFi.scanNetworks( true);
-    //     m_timer.setInterval( m_connectTimeout * 2);
-    //     ESP_LOGI(TAG, "Start scan");
-    //     changeState( STATE_PARSE_NETWORKS);
-    //   }
-    // break;
+    case STATE_NETWORK_SCAN:
+      if( m_timer.hasIntervalElapsed() ) {
+        startScan();
+        m_timer.setInterval( m_connectTimeout * 2);
+        ESP_LOGI(TAG, "Start scan");
+        changeState( STATE_PARSE_NETWORKS);
+      }
+    break;
 
-    // case STATE_PARSE_NETWORKS:
-    //   i = WiFi.scanComplete();
-    //   if( i > 0) {
-    //     m = getNumberOfNetworks();
-    //     ESP_LOGI(TAG, "Parse %d, %d network", i, m);
-    //     for( int j = 0; j < i; j++ ) {
-    //       for( k = 0; k < m; k++ ) {
-    //         if( !strcmp( WiFi.SSID( j).c_str(), getNetworkName( k)) ) {
-    //           int32_t RSSI;
-    //           RSSI = WiFi.RSSI( j);
-    //           if( RSSI > m_maxRssi) {
-    //             m_maxRssi = RSSI;
-    //             m_maxRssiIndex = k;
-    //           }
-    //           ESP_LOGI(TAG, "Max RSSI index %d, max RSSI %d, network %s", m_maxRssiIndex, 0 - m_maxRssi, WiFi.SSID( j).c_str());
-    //         }
-    //       }
-    //     }
-    //     WiFi.scanDelete( );
-    //     //changeState( STATE_INIT_CONNECT);
-    //     changeState( STATE_CONFIGURE_AP);
-    //   } else if( m_timer.hasIntervalElapsed()) {
-    //     ESP_LOGW(TAG, "Scan timeout");
-    //     WiFi.scanDelete( );
-    //     //changeState( STATE_INIT_CONNECT);
-    //     changeState( STATE_CONFIGURE_AP);
-    //   }
-    // break;
+    case STATE_PARSE_NETWORKS:
+      if( m_scanComplete) {
+        uint16_t apCount;
+        wifi_ap_record_t ap_info;
+        m = getNumberOfNetworks();
+        ESP_LOGI(TAG, "Scan complete");
+        esp_wifi_scan_get_ap_num(&apCount);
+        ESP_LOGI(TAG, "Parse %d, %d network", apCount, m);
+        for( int j = 0; j < apCount; j++ ) {
+          esp_wifi_scan_get_ap_record(&ap_info);
+          ESP_LOGI(TAG, "RSSI %d, network %s", ap_info.rssi, ap_info.ssid);
+          // for( k = 0; k < m; k++ ) {
+          //   if( !strcmp( WiFi.SSID( j).c_str(), getNetworkName( k)) ) {
+          //     int32_t RSSI;
+          //     RSSI = WiFi.RSSI( j);
+          //     if( RSSI > m_maxRssi) {
+          //       m_maxRssi = RSSI;
+          //       m_maxRssiIndex = k;
+          //     }
+          //     ESP_LOGI(TAG, "Max RSSI index %d, max RSSI %d, network %s", m_maxRssiIndex, 0 - m_maxRssi, WiFi.SSID( j).c_str());
+          //   }
+          // }
+        }
+        esp_wifi_clear_ap_list();
+        //changeState( STATE_INIT_CONNECT);
+        changeState( STATE_CONFIGURE_AP);
+      } else if( m_timer.hasIntervalElapsed()) {
+        ESP_LOGW(TAG, "Scan timeout");
+        //changeState( STATE_INIT_CONNECT);
+        changeState( STATE_CONFIGURE_AP);
+      }
+    break;
 
     case STATE_CONFIGURE_AP:
       p = m_hostName;
       q = m_hostPassword;
-      // ESP_LOGI(TAG, "Host: %s, %s", p, q);
-      // if( *p == '\0' || *q == '\0') {
-      //   ESP_LOGI(TAG, "No Host: %s, %s", p, q);
-      // } else {
+      ESP_LOGI(TAG, "Host: %s, %s", p, q);
+      if( *p == '\0' || *q == '\0') {
+        ESP_LOGI(TAG, "No Host: %s, %s", p, q);
+      } else {
         hostConfig( );
-
-//        if( WiFi.softAP( p, q) ) {
-            wifi_init_softap();
-            m_hostActive = true;
-            ESP_LOGI(TAG, "Host Up: %s, %s", p, q);
-            //ESP_LOGI(TAG, "Host: IP %s, Mac %s", WiFi.softAPIP().toString().c_str(), WiFi.softAPmacAddress().c_str());
-        // } else {
-        //   m_hostActive = false;
-        //   ESP_LOGI(TAG, "Host not up: %s, %s", p, q);
-        // }
-      //}
+        configStation();
+        m_hostActive = true;
+        ESP_LOGI(TAG, "Host Up: %s, %s", p, q);
+        //ESP_LOGI(TAG, "Host: IP %s, Mac %s", WiFi.softAPIP().toString().c_str(), WiFi.softAPmacAddress().c_str());
+      }
       changeState( STATE_AP_READY);
     break;
 
@@ -495,4 +509,69 @@ void WifiConnection::hostConfig( ) {
   // if( !WiFi.softAPConfig( IPAddress(ip), IPAddress(gw) , IPAddress( mask))) {
   //   ESP_LOGW(TAG, "Host config failed");
   // }
+}
+
+void WifiConnection::configBasicAp() {
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_netif_create_default_wifi_ap();
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+                                                        ESP_EVENT_ANY_ID,
+                                                        &wifi_event_handler,
+                                                        NULL,
+                                                        NULL));
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+}
+void WifiConnection::configStation(void)
+{
+    wifi_config_t wifi_config = {
+        .ap = {
+            // .ssid = (uint8_t *) m_hostName,
+            // .password = WIFI_PASS,
+            // .ssid_len = strlen(m_hostName),
+            .channel = 1,
+            .authmode = WIFI_AUTH_WPA3_PSK,
+            .max_connection = 3,
+            .pmf_cfg = {
+                    .required = true,
+            },
+            .sae_pwe_h2e = WPA3_SAE_PWE_BOTH,
+            .gtk_rekey_interval = 600,
+        },
+    };
+    size_t ssidLen = strlen(m_hostName);
+    memcpy(wifi_config.ap.ssid, m_hostName, ssidLen);
+    wifi_config.ap.ssid_len = ssidLen;
+    memcpy(wifi_config.ap.password, m_hostPassword, strlen(m_hostPassword));
+
+    if (strlen(m_hostPassword) == 0 && wifi_config.ap.authmode != WIFI_AUTH_OWE) {
+        wifi_config.ap.authmode = WIFI_AUTH_OPEN;
+    }
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s channel:1", m_hostName, m_hostPassword);
+}
+void WifiConnection::startScan() {
+  wifi_scan_config_t config;
+  memset(&config, 0, sizeof(wifi_scan_config_t));
+  config.channel = 0;
+  config.show_hidden = false;
+  config.scan_type = WIFI_SCAN_TYPE_ACTIVE;
+  config.scan_time.active.min = 100;
+  config.scan_time.active.max = 300;
+  esp_err_t err = esp_wifi_scan_start(&config, false);
+  if(err != ESP_OK) {
+    ESP_LOGW(TAG, "Failed to start wifi scan, err: %lu", err);
+  } else {
+    m_scanComplete = false;
+  }
 }

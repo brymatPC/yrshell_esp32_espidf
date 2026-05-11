@@ -12,6 +12,11 @@
 class WifiConnection : public Sliceable {
 private:
   static const char s_PREF_NAMESPACE[];
+  static const char s_DEFAULT_HOST_NAME[];
+  static const char s_DEFAULT_HOST_PASSWORD[];
+  static const char s_DEFAULT_HOST_IP[];
+  static const char s_DEFAULT_HOST_GATEWAY[];
+  static const char s_DEFAULT_HOST_MASK[];
 
   char m_hostName[MAX_WIFI_ENTRY_LEN];
   char m_hostPassword[MAX_WIFI_ENTRY_LEN];
@@ -24,6 +29,10 @@ private:
 
   uint32_t m_networkIp;
   bool m_tryReconnect;
+
+  void configBasicAp();
+  void configStation();
+  void startScan();
 
 protected:
   uint8_t m_currentAp, m_state;
@@ -39,12 +48,6 @@ protected:
   void hostConfig( void);
 
 public:
-  static const uint8_t s_DEFAULT_HOST_NAME[];
-  static const uint8_t s_DEFAULT_HOST_PASSWORD[];
-  static const uint8_t s_DEFAULT_HOST_IP[];
-  static const uint8_t s_DEFAULT_HOST_GATEWAY[];
-  static const uint8_t s_DEFAULT_HOST_MASK[];
-
   WifiConnection( LedDriver* led, uint32_t connectTimeout = 5000); 
   virtual ~WifiConnection() { }
   virtual const char* sliceName( void) { return "WifiConnection"; }

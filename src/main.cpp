@@ -15,6 +15,7 @@
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
 
+IntervalTimer m_setupTimer;
 IntervalTimer m_timer;
 IntervalTimer m_bleTimer;
 IntervalTimer m_wifiTimer;
@@ -23,47 +24,55 @@ BleConnection bleConnection;
 WifiConnection wifiConnection(&ledStrip);
 
 static void loop(void *pvParameters) {
+    m_setupTimer.setInterval(5000);
     m_timer.setInterval(2000);
     m_bleTimer.setInterval(45000);
     m_wifiTimer.setInterval(11000);
 
     ledStrip.setup();
     bleConnection.setup();
-    wifiConnection.setup();
-
-    // Print chip information
-    esp_chip_info_t chip_info;
-    uint32_t flash_size;
-    esp_chip_info(&chip_info);
-    printf("This is %s chip with %d CPU core(s), WiFi%s%s, ",
-           CONFIG_IDF_TARGET,
-           chip_info.cores,
-           (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
-           (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
-
-    unsigned major_rev = chip_info.revision / 100;
-    unsigned minor_rev = chip_info.revision % 100;
-    printf("silicon revision v%d.%d, ", major_rev, minor_rev);
-    if(esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
-        printf("Get flash size failed\r\n");
-        return;
-    }
-
-    printf("%uMB %s flash\n", flash_size / (1024 * 1024),
-           (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
-
-    printf("Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
-
+    
     while(1) {
         Sliceable::sliceAll( );
+
+        if(m_setupTimer.hasIntervalElapsed()) {
+
+            wifiConnection.setup();
+
+            // Print chip information
+            esp_chip_info_t chip_info;
+            uint32_t flash_size;
+            esp_chip_info(&chip_info);
+            printf("This is %s chip with %d CPU core(s), WiFi%s%s, ",
+                CONFIG_IDF_TARGET,
+                chip_info.cores,
+                (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
+                (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
+
+            unsigned major_rev = chip_info.revision / 100;
+            unsigned minor_rev = chip_info.revision % 100;
+            printf("silicon revision v%d.%d, ", major_rev, minor_rev);
+            if(esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
+                printf("Get flash size failed\r\n");
+                return;
+            }
+
+            printf("%uMB %s flash\n", flash_size / (1024 * 1024),
+                (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
+
+            printf("Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
+
+            m_setupTimer.setInterval(1000000);
+
+        }
 
         if(m_timer.isNextInterval()) {
             printf("Tick: %lu\r\n", HW_getMillis());
         }
 
         if(m_bleTimer.isNextInterval()) {
-            ESP_LOGI(TAG, "Requesting BLE scan");
-            bleConnection.requestScan();
+            //ESP_LOGI(TAG, "Requesting BLE scan");
+            //bleConnection.requestScan();
         }
 
         if(m_wifiTimer.isNextInterval()) {

@@ -71,6 +71,7 @@ static size_t encoder_callback(const void *data, size_t data_size,
 }
 
 LedStripDriver::LedStripDriver() {
+    m_configured = false;
     m_ledChan = nullptr;
     m_encoder = nullptr;
     m_ledState = false;
@@ -122,9 +123,13 @@ void LedStripDriver::setup() {
     if(err != ESP_OK) {
         ESP_LOGW(TAG, "enable, error: %d", err);
     }
+
+    m_configured = true;
 }
 
 void LedStripDriver::slice() {
+    if(!m_configured) return;
+
     if(m_ledChan) {
         if(m_ledState) {
             if( m_ledTimer.hasIntervalElapsed()) {
@@ -143,6 +148,8 @@ void LedStripDriver::slice() {
 }
 
 void LedStripDriver::transmit(uint32_t pixelVal) {
+    if(!m_configured) return;
+    
     rmt_transmit_config_t tx_config = {
         .loop_count = 0, // no transfer loop
     };

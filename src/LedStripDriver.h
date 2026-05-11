@@ -16,6 +16,7 @@ private:
     rmt_channel_handle_t m_ledChan;
     rmt_encoder_handle_t m_encoder;
 
+    bool m_configured;
     uint32_t m_colour;
     int8_t m_tos;
     uint32_t m_stack[16];
