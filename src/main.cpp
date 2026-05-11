@@ -9,11 +9,14 @@
 
 #include <IntervalTimer.h>
 #include "LedStripDriver.h"
+#include <BleConnection.h>
 
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
 
 LedStripDriver ledStrip;
+BleConnection bleConnection;
+static bool m_bleRequest = false;
 
 static void loop(void *pvParameters) {
     IntervalTimer m_timer;
@@ -53,6 +56,12 @@ static void loop(void *pvParameters) {
         if(m_timer.isNextInterval()) {
             printf("Tick: %lu\r\n", HW_getMillis());
         }
+
+        if(!m_bleRequest && HW_getMillis() > 30000) {
+            ESP_LOGI(TAG, "Requesting BLE scan");
+            bleConnection.requestScan();
+            m_bleRequest = true;
+        }
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
@@ -62,6 +71,7 @@ extern "C" void app_main() {
     esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("Main   ", ESP_LOG_INFO);
     esp_log_level_set("LedStr ", ESP_LOG_INFO);
+    esp_log_level_set("BleCon ", ESP_LOG_INFO);
 
     ESP_LOGI(TAG, "Main Startup");
 
