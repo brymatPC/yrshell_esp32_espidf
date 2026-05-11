@@ -1,5 +1,7 @@
 #include "BleConnection.h"
 #include "esp_log.h"
+#include "nvs.h"
+#include "nvs_flash.h"
 
 static const char* TAG = "BleCon ";
 
@@ -50,48 +52,136 @@ BleConnection::BleConnection()
     }
     m_nextParser = 0;
 }
-// void BleConnection::setup(Preferences &pref) {
-//     char parserKey[16];
-//     pref.begin(s_PREF_NAMESPACE, true);
-//     m_scanIntervalMs    = pref.getUShort("scanInt", s_DEFAULT_SCAN_INTERVAL_MS);
-//     m_scanWindowMs      = pref.getUShort("scanWin", s_DEFAULT_SCAN_WINDOW_MS);
-//     m_scanDuration      = pref.getULong("scanDur", s_DEFAULT_SCAN_DURATION_SEC);
-//     m_scanActively      = pref.getBool("scanAct", s_DEFAULT_SCAN_ACTIVE);
-//     m_scanStartInterval = pref.getULong("scanSInt", s_DEFAULT_SCAN_TIME_MS);
-//     m_scanStartBoot     = pref.getULong("scanBoot", s_DEFAULT_SCAN_BOOT_MS);
-//     for(uint8_t i=0; i < MAX_BLE_DEVICES; i++) {
-//         snprintf(parserKey, 16, "%s%d", parserKeyEnPrefix, i);
-//         m_deviceParsers[i].enabled = pref.getBool(parserKey, false);
-//         snprintf(parserKey, 16, "%s%d", parserKeyAddrPrefix, i);
-//         m_deviceParsers[i].addr[0] = '\0';
-//         pref.getString(parserKey, m_deviceParsers[i].addr, BLE_ADDR_LEN);
-//         snprintf(parserKey, 16, "%s%d", parserKeyParserPrefix, i);
-//         m_deviceParsers[i].parserType = static_cast<BleParserTypes>(pref.getUShort(parserKey, static_cast<uint16_t>(BleParserTypes::none)));
-//     }
-//     pref.end();
+void BleConnection::setup() {
+    char parserKey[16];
+    esp_err_t err;
+    uint32_t _handle;
+    uint8_t temp;
+    uint16_t temp16;
+    size_t len;
+    err = nvs_open(s_PREF_NAMESPACE, NVS_READONLY, &_handle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open nvs partition, err: %lu", err);
+        return;
+    }
+    m_scanIntervalMs = s_DEFAULT_SCAN_INTERVAL_MS;
+    err = nvs_get_u16(_handle, "scanInt", &m_scanIntervalMs);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_u16 fail: scanInt -  %lu", err);
+    }
+    m_scanWindowMs = s_DEFAULT_SCAN_WINDOW_MS;
+    err = nvs_get_u16(_handle, "scanWin", &m_scanWindowMs);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_u16 fail: scanWin -  %lu", err);
+    }
+    m_scanDuration = s_DEFAULT_SCAN_DURATION_SEC;
+    err = nvs_get_u32(_handle, "scanDur", &m_scanDuration);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_u32 fail: scanDur -  %lu", err);
+    }
+    m_scanActively = s_DEFAULT_SCAN_ACTIVE;
+    err = nvs_get_u8(_handle, "scanAct", &temp);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_u8 fail: scanAct -  %lu", err);
+    } else {
+        m_scanActively = temp == 1 ? true : false;
+    }
+    m_scanStartInterval = s_DEFAULT_SCAN_TIME_MS;
+    err = nvs_get_u32(_handle, "scanSInt", &m_scanStartInterval);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_u32 fail: scanSInt -  %lu", err);
+    }
+    m_scanStartBoot = s_DEFAULT_SCAN_BOOT_MS;
+    err = nvs_get_u32(_handle, "scanBoot", &m_scanStartBoot);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_u32 fail: scanBoot -  %lu", err);
+    }
 
-//     m_scanTimer.setInterval(m_scanStartBoot);
-// }
-// void BleConnection::save(Preferences &pref) {
-//     char parserKey[16];
-//     pref.begin(s_PREF_NAMESPACE, false);
-//     pref.putUShort("scanInt", m_scanIntervalMs);
-//     pref.putUShort("scanWin", m_scanWindowMs);
-//     pref.putULong("scanDur", m_scanDuration);
-//     pref.putBool("scanAct", m_scanActively);
-//     pref.putULong("scanSInt", m_scanStartInterval);
-//     pref.putULong("scanBoot", m_scanStartBoot);
-//     for(uint8_t i=0; i < MAX_BLE_DEVICES; i++) {
-//         snprintf(parserKey, 16, "%s%d", parserKeyEnPrefix, i);
-//         pref.putBool(parserKey, m_deviceParsers[i].enabled);
-//         snprintf(parserKey, 16, "%s%d", parserKeyAddrPrefix, i);
-//         pref.putString(parserKey, m_deviceParsers[i].addr);
-//         snprintf(parserKey, 16, "%s%d", parserKeyParserPrefix, i);
-//         pref.putUShort(parserKey, static_cast<uint16_t>(m_deviceParsers[i].parserType));
-//     }
-//     pref.end();
-//     ESP_LOGI(TAG, "Preferences updated");
-// }
+    for(uint8_t i=0; i < MAX_BLE_DEVICES; i++) {
+        snprintf(parserKey, 16, "%s%d", parserKeyEnPrefix, i);
+        m_deviceParsers[i].enabled = false;
+        err = nvs_get_u8(_handle, parserKey, &temp);
+        if(err != ESP_OK) {
+            ESP_LOGE(TAG, "nvs_get_u8 fail: %s -  %lu", parserKey, err);
+        } else {
+            m_deviceParsers[i].enabled = temp == 1 ? true : false;
+        }
+        snprintf(parserKey, 16, "%s%d", parserKeyAddrPrefix, i);
+        m_deviceParsers[i].addr[0] = '\0';
+        err = nvs_get_str(_handle, parserKey, m_deviceParsers[i].addr, &len);
+        if(err != ESP_OK) {
+            ESP_LOGE(TAG, "nvs_get_str fail: %s - %lu", parserKey, err);
+        }
+        snprintf(parserKey, 16, "%s%d", parserKeyParserPrefix, i);
+        m_deviceParsers[i].parserType = BleParserTypes::none;
+        err = nvs_get_u16(_handle, parserKey, &temp16);
+        if(err != ESP_OK) {
+            ESP_LOGE(TAG, "nvs_get_u16 fail: %s -  %lu", parserKey, err);
+        } else {
+            m_deviceParsers[i].parserType = static_cast<BleParserTypes>(temp16);
+        }
+    }
+    nvs_close(_handle);
+
+    m_scanTimer.setInterval(m_scanStartBoot);
+}
+void BleConnection::save() {
+    char parserKey[16];
+    esp_err_t err;
+    uint32_t _handle;
+    err = nvs_open(s_PREF_NAMESPACE, NVS_READWRITE, &_handle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open nvs partition, err: %lu", err);
+        return;
+    }
+    err = nvs_set_u16(_handle, "scanInt", m_scanIntervalMs);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_u16 fail: scanInt -  %lu", err);
+    }
+    err = nvs_set_u16(_handle, "scanWin", m_scanWindowMs);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_u16 fail: scanWin -  %lu", err);
+    }
+    err = nvs_set_u32(_handle, "scanDur", m_scanDuration);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_u32 fail: scanDur -  %lu", err);
+    }
+    err = nvs_set_u8(_handle, "scanAct", m_scanActively ? 1 : 0);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_u8 fail: scanAct -  %lu", err);
+    }
+    err = nvs_set_u32(_handle, "scanSInt", m_scanStartInterval);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_u32 fail: scanSInt -  %lu", err);
+    }
+    err = nvs_set_u32(_handle, "scanBoot", m_scanStartBoot);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_u32 fail: scanBoot -  %lu", err);
+    }
+    for(uint8_t i=0; i < MAX_BLE_DEVICES; i++) {
+        snprintf(parserKey, 16, "%s%d", parserKeyEnPrefix, i);
+        err = nvs_set_u8(_handle, parserKey, m_deviceParsers[i].enabled ? 1 : 0);
+        if(err != ESP_OK) {
+            ESP_LOGE(TAG, "nvs_set_u8 fail: %s -  %lu", parserKey, err);
+        }
+        snprintf(parserKey, 16, "%s%d", parserKeyAddrPrefix, i);
+        err = nvs_set_str(_handle, parserKey, m_deviceParsers[i].addr);
+        if(err != ESP_OK) {
+            ESP_LOGE(TAG, "nvs_set_str fail: %s -  %lu", parserKey, err);
+        }
+        snprintf(parserKey, 16, "%s%d", parserKeyParserPrefix, i);
+        err = nvs_set_u16(_handle, parserKey, static_cast<uint16_t>(m_deviceParsers[i].parserType));
+        if(err != ESP_OK) {
+            ESP_LOGE(TAG, "nvs_set_u16 fail: %s -  %lu", parserKey, err);
+        }
+    }
+    err = nvs_commit(_handle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_commit fail: %lu", err);
+    }
+    nvs_close(_handle);
+    ESP_LOGI(TAG, "Preferences updated");
+}
 void BleConnection::addParser(BleParserTypes type, BleParser *parser) {
     bool found = false;
     for(uint8_t i=0; i < MAX_BLE_DEVICES; i++) {

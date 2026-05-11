@@ -73,8 +73,8 @@ public:
     virtual const char* sliceName( void) { return "BleConnection"; }
     virtual void slice( void);
 
-    // void setup(Preferences &pref);
-    // void save(Preferences &pref);
+    void setup();
+    void save();
 
     void addParser(BleParserTypes type, BleParser *parser);
 

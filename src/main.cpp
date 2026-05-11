@@ -14,16 +14,17 @@
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
 
+IntervalTimer m_timer;
+IntervalTimer m_bleTimer;
 LedStripDriver ledStrip;
 BleConnection bleConnection;
-static bool m_bleRequest = false;
 
 static void loop(void *pvParameters) {
-    IntervalTimer m_timer;
-
     m_timer.setInterval(2000);
+    m_bleTimer.setInterval(45000);
 
     ledStrip.setup();
+    bleConnection.setup();
 
     ledStrip.blink(1000);
 
@@ -57,11 +58,11 @@ static void loop(void *pvParameters) {
             printf("Tick: %lu\r\n", HW_getMillis());
         }
 
-        if(!m_bleRequest && HW_getMillis() > 30000) {
+        if(m_bleTimer.isNextInterval()) {
             ESP_LOGI(TAG, "Requesting BLE scan");
             bleConnection.requestScan();
-            m_bleRequest = true;
         }
+
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
