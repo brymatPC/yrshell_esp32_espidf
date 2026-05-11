@@ -8,14 +8,21 @@
 #include "esp_log.h"
 
 #include <IntervalTimer.h>
+#include "LedStripDriver.h"
 
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
+
+LedStripDriver ledStrip;
 
 static void loop(void *pvParameters) {
     IntervalTimer m_timer;
 
     m_timer.setInterval(2000);
+
+    ledStrip.setup();
+
+    ledStrip.blink(1000);
 
     // Print chip information
     esp_chip_info_t chip_info;
@@ -41,6 +48,8 @@ static void loop(void *pvParameters) {
     printf("Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
 
     while(1) {
+        Sliceable::sliceAll( );
+
         if(m_timer.isNextInterval()) {
             printf("Tick: %lu\r\n", HW_getMillis());
         }
@@ -52,7 +61,8 @@ extern "C" void app_main() {
 
     esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("Main   ", ESP_LOG_INFO);
-    
+    esp_log_level_set("LedStr ", ESP_LOG_INFO);
+
     ESP_LOGI(TAG, "Main Startup");
 
     uint32_t ret = xTaskCreate(&loop, "loop", 4096, NULL, 5, &xHandle);
