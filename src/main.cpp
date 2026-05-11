@@ -10,23 +10,26 @@
 #include <IntervalTimer.h>
 #include "LedStripDriver.h"
 #include <BleConnection.h>
+#include "WifiConnection.h"
 
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
 
 IntervalTimer m_timer;
 IntervalTimer m_bleTimer;
+IntervalTimer m_wifiTimer;
 LedStripDriver ledStrip;
 BleConnection bleConnection;
+WifiConnection wifiConnection(&ledStrip);
 
 static void loop(void *pvParameters) {
     m_timer.setInterval(2000);
     m_bleTimer.setInterval(45000);
+    m_wifiTimer.setInterval(11000);
 
     ledStrip.setup();
     bleConnection.setup();
-
-    ledStrip.blink(1000);
+    wifiConnection.setup();
 
     // Print chip information
     esp_chip_info_t chip_info;
@@ -63,6 +66,12 @@ static void loop(void *pvParameters) {
             bleConnection.requestScan();
         }
 
+        if(m_wifiTimer.isNextInterval()) {
+            if(!wifiConnection.enabled()) {
+                wifiConnection.enable();
+            }
+        }
+
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
@@ -73,6 +82,7 @@ extern "C" void app_main() {
     esp_log_level_set("Main   ", ESP_LOG_INFO);
     esp_log_level_set("LedStr ", ESP_LOG_INFO);
     esp_log_level_set("BleCon ", ESP_LOG_INFO);
+    esp_log_level_set("WifiCon", ESP_LOG_INFO);
 
     ESP_LOGI(TAG, "Main Startup");
 
