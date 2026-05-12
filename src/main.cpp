@@ -11,6 +11,7 @@
 #include "LedStripDriver.h"
 #include <BleConnection.h>
 #include "WifiConnection.h"
+#include "TelnetServer.h"
 
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
@@ -22,8 +23,14 @@ IntervalTimer m_wifiTimer;
 LedStripDriver ledStrip;
 BleConnection bleConnection;
 WifiConnection wifiConnection(&ledStrip);
+//TelnetServer telnetServer;
+TelnetLogServer telnetLogServer;
 
 static void loop(void *pvParameters) {
+    unsigned telnetPort = 23;
+    unsigned telnetLogPort = 2023;
+    unsigned telnetLogEnabled = false;
+
     m_setupTimer.setInterval(5000);
     m_timer.setInterval(2000);
     m_bleTimer.setInterval(45000);
@@ -31,7 +38,7 @@ static void loop(void *pvParameters) {
 
     ledStrip.setup();
     bleConnection.setup();
-    
+
     while(1) {
         Sliceable::sliceAll( );
 
@@ -81,6 +88,13 @@ static void loop(void *pvParameters) {
             }
         }
 
+        if(!telnetLogEnabled && wifiConnection.isHostActive()) {
+            if( telnetLogPort != 0) {
+                telnetLogServer.init( telnetLogPort);
+                telnetLogEnabled = true;
+            }
+        }
+
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
@@ -92,6 +106,7 @@ extern "C" void app_main() {
     esp_log_level_set("LedStr ", ESP_LOG_INFO);
     esp_log_level_set("BleCon ", ESP_LOG_INFO);
     esp_log_level_set("WifiCon", ESP_LOG_INFO);
+    esp_log_level_set("TelnetS", ESP_LOG_INFO);
 
     ESP_LOGI(TAG, "Main Startup");
 
