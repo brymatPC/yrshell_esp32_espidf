@@ -13,6 +13,9 @@
 #include "WifiConnection.h"
 #include "TelnetServer.h"
 
+#define YRSHELL_ON_TELNET
+#define LOCAL_LOG_BUFFER_SIZE 8192
+
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
 
@@ -20,11 +23,41 @@ IntervalTimer m_setupTimer;
 IntervalTimer m_timer;
 IntervalTimer m_bleTimer;
 IntervalTimer m_wifiTimer;
+CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_logQ;
 LedStripDriver ledStrip;
 BleConnection bleConnection;
 WifiConnection wifiConnection(&ledStrip);
 //TelnetServer telnetServer;
 TelnetLogServer telnetLogServer;
+
+
+bool logOut(char c) {
+  static char logOverflow[] = "\r\n\nLOG DATA DROPPED\r\n\n";
+  bool ret = true;
+    if( m_logQ.spaceAvailable( 24)) {
+      m_logQ.put( c);
+    } else {
+      char *s = logOverflow;
+      ret = false;
+      m_logQ.reset();
+      while( *s != '\0') {
+        m_logQ.put( *s++);
+      }
+    }
+    return ret;
+}
+int custom_log_handler(const char* format, va_list args) {
+    // Format the message into a buffer
+    char buf[128];
+    int ret = vsnprintf(buf, sizeof(buf), format, args);
+    char *s = buf;
+    while( *s != '\0') {
+      if(!logOut( *s++)) {
+        break;
+      }
+    }
+    return ret; 
+}
 
 static void loop(void *pvParameters) {
     unsigned telnetPort = 23;
@@ -35,6 +68,8 @@ static void loop(void *pvParameters) {
     m_timer.setInterval(2000);
     m_bleTimer.setInterval(45000);
     m_wifiTimer.setInterval(11000);
+
+    esp_log_set_vprintf(custom_log_handler);
 
     ledStrip.setup();
     bleConnection.setup();
@@ -50,7 +85,7 @@ static void loop(void *pvParameters) {
             esp_chip_info_t chip_info;
             uint32_t flash_size;
             esp_chip_info(&chip_info);
-            printf("This is %s chip with %d CPU core(s), WiFi%s%s, ",
+            ESP_LOGI(TAG, "This is %s chip with %d CPU core(s), WiFi%s%s, ",
                 CONFIG_IDF_TARGET,
                 chip_info.cores,
                 (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
@@ -58,23 +93,23 @@ static void loop(void *pvParameters) {
 
             unsigned major_rev = chip_info.revision / 100;
             unsigned minor_rev = chip_info.revision % 100;
-            printf("silicon revision v%d.%d, ", major_rev, minor_rev);
+            ESP_LOGI(TAG, "silicon revision v%d.%d, ", major_rev, minor_rev);
             if(esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
                 printf("Get flash size failed\r\n");
                 return;
             }
 
-            printf("%uMB %s flash\n", flash_size / (1024 * 1024),
+            ESP_LOGI(TAG, "%uMB %s flash", flash_size / (1024 * 1024),
                 (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
-            printf("Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
+            ESP_LOGI(TAG, "Minimum free heap size: %d bytes", esp_get_minimum_free_heap_size());
 
             m_setupTimer.setInterval(1000000);
 
         }
 
         if(m_timer.isNextInterval()) {
-            printf("Tick: %lu\r\n", HW_getMillis());
+            ESP_LOGI(TAG, "Tick: %lu", HW_getMillis());
         }
 
         if(m_bleTimer.isNextInterval()) {
@@ -91,11 +126,30 @@ static void loop(void *pvParameters) {
         if(!telnetLogEnabled && wifiConnection.isHostActive()) {
             if( telnetLogPort != 0) {
                 telnetLogServer.init( telnetLogPort);
+                telnetLogServer.enable(true);
                 telnetLogEnabled = true;
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(100));
+        bool telnetSpaceAvailable = telnetLogServer.spaceAvailable( 32);
+        bool serialSpaceAvailable = true;
+        if( m_logQ.valueAvailable() && (telnetSpaceAvailable || serialSpaceAvailable)) {
+            char c;
+            for( uint8_t i = 0; i < 32 && m_logQ.valueAvailable(); i++) {
+                c = m_logQ.get();
+                if(telnetSpaceAvailable) {
+                    telnetLogServer.put( c);
+                }
+            #ifdef YRSHELL_ON_TELNET
+                if(serialSpaceAvailable) {
+                    printf("%c", c);
+                }
+            #endif
+            }
+        }
+
+        //vTaskDelay(pdMS_TO_TICKS(5));
+        vTaskDelay(1);
     }
 }
 

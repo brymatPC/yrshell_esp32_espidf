@@ -179,11 +179,12 @@ void TelnetServer::slice() {
             if( m_toTelnetQ) {
               const char* p = m_toTelnetQ->getLinearReadBuffer();
               size_t len = m_toTelnetQ->getLinearReadBufferSize();
-              //if( len > 0 && m_client->availableForWrite() >= (int) len) {
               if( len > 0) {
                 size_t bw = send(m_client, (uint8_t*) p , len, MSG_DONTWAIT);
                 if( bw > 0) {
                   m_toTelnetQ->drop( bw);
+                } else {
+                  ESP_LOGW(TAG, "Failed to send %lu bytes, errno: %d", len, errno);
                 }
               }
             }
