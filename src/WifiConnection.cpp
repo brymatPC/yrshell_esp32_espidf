@@ -5,6 +5,7 @@
 #include "esp_event.h"
 #include "nvs.h"
 #include "nvs_flash.h"
+#include "lwip/inet.h"
 
 #include <stdio.h>
 
@@ -82,10 +83,10 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
 {
     if (event_id == WIFI_EVENT_AP_STACONNECTED) {
         wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
-        ESP_LOGI(TAG, "station \"MACSTR\" join, AID=%d", MAC2STR(event->mac), event->aid);
+        ESP_LOGI(TAG, "station " MACSTR " join, AID=%d", MAC2STR(event->mac), event->aid);
     } else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) {
         wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
-        ESP_LOGI(TAG, "station \"MACSTR\" leave, AID=%d, reason=%d", MAC2STR(event->mac), event->aid, event->reason);
+        ESP_LOGI(TAG, "station " MACSTR " leave, AID=%d, reason=%d", MAC2STR(event->mac), event->aid, event->reason);
     } else if(event_id == WIFI_EVENT_SCAN_DONE) {
         uint16_t count = 0;
         esp_wifi_scan_get_ap_num(&count);
@@ -124,6 +125,21 @@ void WifiConnection::setup() {
     esp_err_t err;
     uint32_t _handle;
     size_t len = MAX_WIFI_ENTRY_LEN;
+
+    
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_netif_create_default_wifi_ap();
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+                                                        ESP_EVENT_ANY_ID,
+                                                        &wifi_event_handler,
+                                                        NULL,
+                                                        NULL));
+
+
     err = nvs_open(s_PREF_NAMESPACE, NVS_READWRITE, &_handle);
     if(err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to open nvs partition, err: %lu", err);
@@ -431,11 +447,19 @@ void WifiConnection::slice( ) {
       if( *p == '\0' || *q == '\0') {
         ESP_LOGI(TAG, "No Host: %s, %s", p, q);
       } else {
+        esp_netif_ip_info_t ip;
         hostConfig( );
         configStation();
         m_hostActive = true;
         ESP_LOGI(TAG, "Host Up: %s, %s", p, q);
-        //ESP_LOGI(TAG, "Host: IP %s, Mac %s", WiFi.softAPIP().toString().c_str(), WiFi.softAPmacAddress().c_str());
+        if(esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_AP_DEF"), &ip) == ESP_OK) {
+          char ip_addr[16];
+          inet_ntoa_r(ip.ip.addr, ip_addr, 16);
+          ESP_LOGI(TAG, "Host: IP %s", ip_addr);
+        } else {
+          ESP_LOGW(TAG, "Failed to get ap ip address");
+        }
+        
       }
       changeState( STATE_AP_READY);
     break;
@@ -512,17 +536,6 @@ void WifiConnection::hostConfig( ) {
 }
 
 void WifiConnection::configBasicAp() {
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_ap();
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
-                                                        ESP_EVENT_ANY_ID,
-                                                        &wifi_event_handler,
-                                                        NULL,
-                                                        NULL));
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
