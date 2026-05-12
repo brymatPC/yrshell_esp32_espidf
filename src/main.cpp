@@ -5,7 +5,7 @@
 #include <esp_chip_info.h>
 #include "esp_flash.h"
 #include "esp_err.h"
-#include "esp_log.h"
+#include "esp_log_custom.h"
 
 #include <IntervalTimer.h>
 #include "LedStripDriver.h"
