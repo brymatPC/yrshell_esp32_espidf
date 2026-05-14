@@ -23,6 +23,9 @@ protected:
 
     void changeState( uint8_t newState);
 
+    bool startListenSocket();
+    void configureClient();
+
 public:
     TelnetServer(void);
     virtual ~TelnetServer();
