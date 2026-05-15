@@ -24,8 +24,6 @@ static char s_appVersion[] = "0.9.0";
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
 
-IntervalTimer m_timer;
-IntervalTimer m_wifiTimer;
 CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_logQ;
 AppManager appMgr(s_appName, s_appVersion);
 YRShellEsp32 shell;
@@ -65,17 +63,23 @@ int custom_log_handler(const char* format, va_list args) {
 
 static void loop(void *pvParameters) {
     unsigned telnetPort = 23;
-    unsigned telnetEnabled = false;
     unsigned telnetLogPort = 2023;
-    unsigned telnetLogEnabled = false;
-
-    m_wifiTimer.setInterval(5000);
 
     appMgr.init();
     ledStrip.setup();
     bleConnection.setup();
 
     wifiConnection.setup();
+    wifiConnection.enable();
+
+    if( telnetLogPort != 0) {
+        telnetLogServer.init( telnetLogPort);
+        telnetLogServer.enable(true);
+    }
+
+    if( telnetPort != 0) {
+        telnetServer.init( telnetPort, &shell.getInq(), &shell.getOutq());
+    }
 
     shell.setLedDriver(&ledStrip);
     shell.setAppMgr(&appMgr);
@@ -86,27 +90,6 @@ static void loop(void *pvParameters) {
 
     while(1) {
         Sliceable::sliceAll( );
-
-        if(m_wifiTimer.isNextInterval()) {
-            if(!wifiConnection.enabled()) {
-                wifiConnection.enable();
-            }
-        }
-
-        if(!telnetLogEnabled && wifiConnection.isHostActive()) {
-            if( telnetLogPort != 0) {
-                telnetLogServer.init( telnetLogPort);
-                telnetLogServer.enable(true);
-                telnetLogEnabled = true;
-            }
-        }
-
-        if(!telnetEnabled && wifiConnection.isHostActive()) {
-            if( telnetPort != 0) {
-                telnetServer.init( telnetPort, &shell.getInq(), &shell.getOutq());
-                telnetEnabled = true;
-            }
-        }
 
         bool telnetSpaceAvailable = telnetLogServer.spaceAvailable( 32);
         bool serialSpaceAvailable = true;

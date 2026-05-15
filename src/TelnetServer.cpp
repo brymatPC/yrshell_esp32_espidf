@@ -1,6 +1,7 @@
 #include "TelnetServer.h"
 
 #include "esp_log_custom.h"
+#include "esp_wifi.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -110,6 +111,15 @@ void TelnetServer::configureClient() {
     setsockopt(m_client, IPPROTO_TCP, TCP_KEEPCNT, &keepCount, sizeof(int));
 }
 
+bool TelnetServer::wifiConnected() {
+    bool ret = false;
+    wifi_mode_t mode;
+    if(esp_wifi_get_mode(&mode) == ESP_OK) {
+        ret = (mode == WIFI_MODE_STA || mode == WIFI_MODE_AP || mode == WIFI_MODE_APSTA);
+    }
+    return ret;
+}
+
 void TelnetServer::changeState( uint8_t newState) {
     ESP_LOGI(TAG, "Change state from %u to %u", m_state, newState);
     m_state = newState;
@@ -129,7 +139,7 @@ void TelnetServer::slice() {
             switch( m_state) {
                 case STATE_STARTUP:
                     // BAM - 20260107 - Need to wait for WiFi to be initialized before creating a server or client
-                    if(m_configured) {
+                    if(wifiConnected()) {
                         if(startListenSocket()) {
                             changeState( STATE_IDLE);
                         } else {

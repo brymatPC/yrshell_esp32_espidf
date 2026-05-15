@@ -25,6 +25,7 @@ protected:
 
     bool startListenSocket();
     void configureClient();
+    bool wifiConnected();
 
 public:
     TelnetServer(void);

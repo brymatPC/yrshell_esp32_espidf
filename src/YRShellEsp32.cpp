@@ -20,7 +20,7 @@
 #include "driver/gpio.h"
 #include "esp_sleep.h"
 #include "nvs.h"
-
+#include "esp_wifi.h"
 
 static const char* TAG = "YRShell";
 
@@ -281,9 +281,16 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               pushParameterStack( m_hexMode);
               break;
           case SE_CC_wifiConnected:
-              // TODO: Re-Add
-              //pushParameterStack(  WiFi.status() == WL_CONNECTED);
-              pushParameterStack( 0);
+          {
+              wifi_mode_t mode;
+              esp_err_t err = esp_wifi_get_mode(&mode);
+              if(err != ESP_OK) {
+                ESP_LOGW(TAG, "Failed to get wifi mode, err: %lu", err);
+                pushParameterStack(0);
+              } else {
+                pushParameterStack((uint32_t) mode);
+              }
+          }
               break;
           case SE_CC_setTelnetLogEnable:
               t1 = popParameterStack();
