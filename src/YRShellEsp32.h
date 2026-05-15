@@ -2,7 +2,6 @@
 #define YRSHELL_ESP32_H_
 
 #include <YRShell.h>
-// #include <LittleFS.h>
 
 #include "YRShellExec.h"
 
@@ -140,9 +139,8 @@ protected:
   Sen66Device *m_sen66Device;
   UploadDataClient* m_uploadClient;
   IntervalTimer m_execTimer;
-  bool m_fileOpen, m_initialFileLoaded, m_lastPromptEnable, m_lastCommandEcho;
-  //File m_file;
-
+  bool m_lastPromptEnable, m_lastCommandEcho;
+  
   virtual void executeFunction( uint16_t n);
   virtual const char* shellClass( void) { return "YRShellEsp32"; }
   virtual const char* mainFileName( ) { return "main.cpp"; }
@@ -169,7 +167,6 @@ public:
   void setUploadClient(UploadDataClient *client) { m_uploadClient = client; }
 
   virtual void slice( void);
-  void loadFile( const char* fname, bool exec = true);
 
   inline bool isAuxQueueInUse( void) { return m_useAuxQueues; }
   CircularQBase<char>& getAuxOutq(void) { return *m_AuxOutq; };

@@ -1,16 +1,20 @@
 #include "YRShellEsp32.h"
+// TODO: Re-add
 //#include "AppManager.h"
 #include "LedStripDriver.h"
+// TODO: Re-add
 //#include "Sen66Device.h"
 #include "TelnetServer.h"
+// TODO: Re-add
 //#include "TempHumidityParser.h"
 #include "WifiConnection.h"
+// TODO: Re-add
 //#include "VictronDevice.h"
+// TODO: Re-add
 //#include "UploadDataClient.h"
 #include "Utilities.h"
 
 #include <BleConnection.h>
-//#include <Preferences.h>
 #include <time.h>
 #include <esp_idf_version.h>
 #include "esp_log_custom.h"
@@ -33,14 +37,11 @@ static const FunctionEntry yr8266ShellExtensionFunctions[] = {
     { SE_CC_setPinOut,            "spo" },
     { SE_CC_setDigitalPin,        "setDigitalPin" },
     { SE_CC_setDigitalPin,        "sdp" },
-    { SE_CC_setAnalogPin,         "setAnalogPin" },
-    { SE_CC_setAnalogPin,         "sap" },
     { SE_CC_getDigitalPin,        "getDigitalPin" },
-    { SE_CC_getAnalogPin,         "getAnalogPin" },
     { SE_CC_ledPush,              "ledPush" },
     { SE_CC_ledPop,               "ledPop" },
     { SE_CC_setLedOnOffMs,        "setLedOnOffMs" },
-    { SE_CC_setLogMask,           "setLogMask" },   
+    { SE_CC_setLogMask,           "setLogMask" },
     { SE_CC_execDone,             "execDone"},
     { SE_CC_hexModeQ,             "hexMode?"},
     { SE_CC_wifiConnected,        "wifiConnected"},
@@ -78,15 +79,13 @@ static const FunctionEntry yr8266ShellExtensionFunctions[] = {
 
     { SE_CC_saveNetworkParameters,"saveNetworkParameters" },
 
-    { SE_CC_loadFile,              "loadFile" },
-
     { SE_CC_dbgM,                  "logM" },
-    { SE_CC_dbgDM,                 "logDM" }, 
-    { SE_CC_dbgDDM,                "logDDM" }, 
-    { SE_CC_dbgXM,                 "logXM" }, 
-    { SE_CC_dbgXXM,                "logXXM" },  
+    { SE_CC_dbgDM,                 "logDM" },
+    { SE_CC_dbgDDM,                "logDDM" },
+    { SE_CC_dbgXM,                 "logXM" },
+    { SE_CC_dbgXXM,                "logXXM" },
 
-    { SE_CC_hardReset,             "hardReset" },  
+    { SE_CC_hardReset,             "hardReset" },
 
     { SE_CC_dotUb,                ".ub" },
     { SE_CC_strToInt,             "strToInt"},
@@ -139,8 +138,6 @@ static char s_uploadData[] = "{\"data\":32}";
 
 YRShellEsp32::YRShellEsp32() {
   m_telnetLogServer = NULL;
-  m_fileOpen = false;
-  m_initialFileLoaded = false;
   m_initialized = false;
   m_auxBufIndex = 0;
 }
@@ -183,39 +180,9 @@ void YRShellEsp32::execString( const char* p) {
   }
 }
 
-void YRShellEsp32::loadFile( const char* fname, bool exec) {
-  // if( m_fileOpen) {
-  //   ESP_LOGI(TAG, "File already open");
-  // } else {
-  //   if( fname == NULL || fname[0] == '\0') {
-  //     ESP_LOGI(TAG, "no_valid_file");
-  //   } else {
-  //     m_file = LittleFS.open(fname, "r");
-  //     if( !m_file) {
-  //       ESP_LOGI(TAG, "Failed: %s", fname);
-  //     } else {
-  //       if( exec) {
-  //         requestUseAuxQueues();
-  //       }
-  //       m_fileOpen = true;
-  //       ESP_LOGI(TAG, "Loading: %s", fname);
-  //     }
-  //   }
-  // }
-}
 
 void YRShellEsp32::slice() {
   YRShellBase::slice();
-  // if( m_fileOpen && m_auxInq.spaceAvailable(10)) {
-  //   int c = m_file.read();
-  //   if( c != -1) {
-  //     m_auxInq.put( c);
-  //   } else {
-  //     m_file.close();
-  //     m_fileOpen = false;
-  //     ESP_LOGI(TAG, "Closing File");
-  //   } 
-  // }
 
   if( m_exec && m_execTimer.hasIntervalElapsed()) {
     m_exec = false;
@@ -225,7 +192,7 @@ void YRShellEsp32::slice() {
     while( m_AuxOutq->valueAvailable()) {
       char c = m_AuxOutq->get();
       if( c != '\r' && c != '\n' ) {
-        m_auxBuf[ m_auxBufIndex++] = c;    
+        m_auxBuf[ m_auxBufIndex++] = c;
       }
       if( c == '\r' || c == '\n' ||  m_auxBufIndex > (sizeof(m_auxBuf) - 2 ) ) {
         m_auxBuf[ m_auxBufIndex] = '\0';
@@ -245,11 +212,6 @@ void YRShellEsp32::slice() {
     ESP_LOGV(TAG, "AuxBuf: %s", m_auxBuf);
     m_auxBufIndex = 0;
   }
-
-  if( !m_initialFileLoaded && m_initialized && isIdle() ) {
-      m_initialFileLoaded = true;
-      loadFile( INITIAL_LOAD_FILE);
-  }
 } 
 
 void pinMode(uint32_t pin, gpio_mode_t mode, bool pullup = false) {
@@ -266,10 +228,6 @@ void digitalWrite(uint32_t pin, uint32_t level) {
 
 int digitalRead(uint32_t pin) {
   return gpio_get_level((gpio_num_t) pin);
-}
-
-void analogWrite(uint32_t pin, uint32_t level) {
-  // TODO: Fill in
 }
 
 void YRShellEsp32::executeFunction( uint16_t n) {
@@ -292,20 +250,8 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               t2 = popParameterStack();
               digitalWrite( t1, t2);
               break;
-          case SE_CC_setAnalogPin:
-              t1 = popParameterStack();
-              t2 = popParameterStack();
-              analogWrite( t1, t2);
-              break;
           case SE_CC_getDigitalPin:
               pushParameterStack( digitalRead(popParameterStack()));
-              break;
-          case SE_CC_getAnalogPin:
-#ifdef ESP8266
-              pushParameterStack( analogRead(A0));
-#else
-              pushParameterStack( 0);
-#endif
               break;
           case SE_CC_ledPush:
               if( m_led) {
@@ -335,8 +281,8 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               pushParameterStack( m_hexMode);
               break;
           case SE_CC_wifiConnected:
-              //pushParameterStack(  WiFi.status() == WL_CONNECTED);
               // TODO: Re-Add
+              //pushParameterStack(  WiFi.status() == WL_CONNECTED);
               pushParameterStack( 0);
               break;
           case SE_CC_setTelnetLogEnable:
@@ -423,6 +369,7 @@ void YRShellEsp32::executeFunction( uint16_t n) {
           case SE_CC_getHostMac:
               m_textBuffer[ 0] = '\0';
               if( m_wifiConnection) {
+                // TODO: Re-add
                 //m_wifiConnection->getHostMac(m_textBuffer);
               }
               pushParameterStack( 0);
@@ -461,6 +408,7 @@ void YRShellEsp32::executeFunction( uint16_t n) {
           case SE_CC_getNetworkMac:
               m_textBuffer[ 0] = '\0';
               if( m_wifiConnection) {
+                // TODO: Re-add
                 //m_wifiConnection->getNetworkMac( m_textBuffer );
               }
               pushParameterStack( 0);
@@ -530,10 +478,6 @@ void YRShellEsp32::executeFunction( uint16_t n) {
                   m_wifiConnection->save();
               }
               break;
-
-          case SE_CC_loadFile:
-              loadFile( getAddressFromToken(popParameterStack()), false );
-              break;
           case SE_CC_dbgM:
               ESP_LOGI(TAG, "%s", getAddressFromToken(popParameterStack()) );
               break;
@@ -557,7 +501,6 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               break;
 
           case SE_CC_hardReset:
-              //LittleFS.remove( "/NetworkParameters");
               esp_restart();
               break;
 
@@ -574,6 +517,7 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               pushParameterStack( t1);
               break;
           case SE_CC_checkPreferences:
+              // TODO: Re-Add
               // if(m_pref) {
               //   pushParameterStack(m_pref->freeEntries());
               // } else {
@@ -712,8 +656,7 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               // }
               break;
           case SE_CC_flashSize:
-              // t1 = LittleFS.totalBytes();
-              // t2 = LittleFS.usedBytes();
+              // TODO: Re-Add
               t1 = 0;
               t2 = 0;
               pushParameterStack( t1);
@@ -734,6 +677,7 @@ void YRShellEsp32::executeFunction( uint16_t n) {
             break;
           case SE_CC_cpuPerf:
             t1 = popParameterStack();
+            // TODO: Re-Add
             //startCpuPerf(t1);
             break;
           case SE_CC_heapPerf:
