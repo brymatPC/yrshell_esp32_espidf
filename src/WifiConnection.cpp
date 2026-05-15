@@ -96,13 +96,20 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
         ESP_LOGI(TAG, "Wifi Scan complete, found %u networks", count);
         m_scanComplete = true;
     } else if (event_id == WIFI_EVENT_STA_CONNECTED) {
-        wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
-        ESP_LOGI(TAG, "joined station " MACSTR " , AID=%d", MAC2STR(event->mac), event->aid);
-        m_stationConnected = true;
+        wifi_event_sta_connected_t* event = (wifi_event_sta_connected_t*) event_data;
+        ESP_LOGI(TAG, "joined station %s, AID=%d", event->ssid, event->aid);
     } else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
-        ESP_LOGI(TAG, "left station " MACSTR ", AID=%d, reason=%d", MAC2STR(event->mac), event->aid, event->reason);
+        wifi_event_sta_disconnected_t* event = (wifi_event_sta_disconnected_t*) event_data;
+        ESP_LOGI(TAG, "left station %s, reason=%d", event->ssid, event->reason);
         m_stationConnected = false;
+    }
+}
+static void ip_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+{
+    if (event_id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+        ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        m_stationConnected = true;
     }
 }
 
@@ -150,6 +157,11 @@ void WifiConnection::setup() {
                                                         NULL,
                                                         NULL));
 
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
+                                                        IP_EVENT_STA_GOT_IP,
+                                                        &ip_event_handler,
+                                                        NULL,
+                                                        NULL));
 
     err = nvs_open(s_PREF_NAMESPACE, NVS_READWRITE, &_handle);
     if(err != ESP_OK) {
@@ -300,8 +312,7 @@ int WifiConnection::getConnectedNetworkIndex( void) {
 }
 
 bool WifiConnection::isNetworkConnected( void) {
-    //return WiFi.status() == WL_CONNECTED;
-    return false;
+    return m_stationConnected;
 }
 
 void WifiConnection::slice( ) {
@@ -341,7 +352,6 @@ void WifiConnection::slice( ) {
             ESP_LOGD(TAG, "Network not configured, going to wait state");
             changeState( STATE_WAIT_CONNECT);
         } else {
-            //WiFi.begin( (char*)p,  q);
             esp_wifi_set_mode(WIFI_MODE_STA);
             stationConnect((char*)p,  q);
             changeState( STATE_WAIT_CONNECT);
@@ -351,10 +361,11 @@ void WifiConnection::slice( ) {
 
     case STATE_WAIT_CONNECT:
         if( m_stationConnected) {
-            //m_networkIp = (uint32_t) WiFi.localIP();
             esp_netif_ip_info_t ip;
-            if (esp_netif_get_ip_info(_esp_sta_netif, &ip) == ESP_OK) {
+            err = esp_netif_get_ip_info(_esp_sta_netif, &ip);
+            if(err == ESP_OK) {
                 m_networkIp = ip.ip.addr;
+                ESP_LOGI(TAG, "Station connect, ip: 0x%08x, gw: 0x%08X", ip.ip.addr, ip.gw.addr);
             } else {
                 ESP_LOGW(TAG, "Failed to get station ip - 0x%x: %s", err, esp_err_to_name(err));
             }
