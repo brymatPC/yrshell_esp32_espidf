@@ -20,6 +20,7 @@
 #include "esp_log_custom.h"
 #include "driver/gpio.h"
 #include "esp_sleep.h"
+#include "nvs.h"
 
 
 static const char* TAG = "YRShell";
@@ -517,12 +518,16 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               pushParameterStack( t1);
               break;
           case SE_CC_checkPreferences:
-              // TODO: Re-Add
-              // if(m_pref) {
-              //   pushParameterStack(m_pref->freeEntries());
-              // } else {
-              //   pushParameterStack(0);
-              // }
+          {
+              nvs_stats_t nvs_stats;
+              esp_err_t err = nvs_get_stats(NULL, &nvs_stats);
+              if (err) {
+                ESP_LOGW(TAG, "Failed to get nvs statistics, err: %lu", err);
+                pushParameterStack(0);
+              } else {
+                pushParameterStack(nvs_stats.free_entries);
+              }
+            }
               break;
           case SE_CC_storePreferences:
               if(m_pref) {

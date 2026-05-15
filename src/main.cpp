@@ -6,6 +6,7 @@
 #include "esp_flash.h"
 #include "esp_err.h"
 #include "esp_log_custom.h"
+#include "nvs_flash.h"
 
 #include <IntervalTimer.h>
 #include "LedStripDriver.h"
@@ -20,9 +21,7 @@
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
 
-IntervalTimer m_setupTimer;
 IntervalTimer m_timer;
-IntervalTimer m_bleTimer;
 IntervalTimer m_wifiTimer;
 CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_logQ;
 YRShellEsp32 shell;
@@ -68,15 +67,15 @@ static void loop(void *pvParameters) {
     unsigned telnetLogPort = 2023;
     unsigned telnetLogEnabled = false;
 
-    m_setupTimer.setInterval(5000);
     m_timer.setInterval(2000);
-    m_bleTimer.setInterval(45000);
-    m_wifiTimer.setInterval(11000);
+    m_wifiTimer.setInterval(5000);
 
-    esp_log_set_vprintf(custom_log_handler);
 
     ledStrip.setup();
     bleConnection.setup();
+
+    wifiConnection.setup();
+    setupComplete = true;
 
     shell.setLedDriver(&ledStrip);
     shell.setWifiConnection(&wifiConnection);
@@ -87,45 +86,8 @@ static void loop(void *pvParameters) {
     while(1) {
         Sliceable::sliceAll( );
 
-        if(!setupComplete && m_setupTimer.hasIntervalElapsed()) {
-
-            wifiConnection.setup();
-
-            // Print chip information
-            esp_chip_info_t chip_info;
-            uint32_t flash_size;
-            esp_chip_info(&chip_info);
-            ESP_LOGI(TAG, "This is %s chip with %d CPU core(s), WiFi%s%s, ",
-                CONFIG_IDF_TARGET,
-                chip_info.cores,
-                (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
-                (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
-
-            unsigned major_rev = chip_info.revision / 100;
-            unsigned minor_rev = chip_info.revision % 100;
-            ESP_LOGI(TAG, "silicon revision v%d.%d, ", major_rev, minor_rev);
-            if(esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
-                printf("Get flash size failed\r\n");
-                return;
-            }
-
-            ESP_LOGI(TAG, "%uMB %s flash", flash_size / (1024 * 1024),
-                (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
-
-            ESP_LOGI(TAG, "Minimum free heap size: %d bytes", esp_get_minimum_free_heap_size());
-
-            setupComplete = true;
-            m_setupTimer.setInterval(1000000);
-
-        }
-
         if(m_timer.isNextInterval()) {
             ESP_LOGI(TAG, "Tick: %lu", HW_getMillis());
-        }
-
-        if(m_bleTimer.isNextInterval()) {
-            //ESP_LOGI(TAG, "Requesting BLE scan");
-            //bleConnection.requestScan();
         }
 
         if(m_wifiTimer.isNextInterval()) {
@@ -166,12 +128,15 @@ static void loop(void *pvParameters) {
             }
         }
 
-        //vTaskDelay(pdMS_TO_TICKS(5));
         vTaskDelay(1);
     }
 }
 
 extern "C" void app_main() {
+
+    ESP_ERROR_CHECK(nvs_flash_init());
+
+    esp_log_set_vprintf(custom_log_handler);
 
     esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("Main   ", ESP_LOG_INFO);
@@ -188,13 +153,5 @@ extern "C" void app_main() {
 
     ESP_LOGI(TAG, "Task create returned %lu", ret);
 
-    vTaskDelay(10000 / portTICK_PERIOD_MS);
-
-    // for (int i = 10; i >= 0; i--) {
-    //     printf("Restarting in %d seconds...\n", i);
-    //     vTaskDelay(2000 / portTICK_PERIOD_MS);
-    // }
-    // printf("Restarting now.\n");
-    // fflush(stdout);
-    // esp_restart();
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
