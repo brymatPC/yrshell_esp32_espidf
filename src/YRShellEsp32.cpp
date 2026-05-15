@@ -1,6 +1,5 @@
 #include "YRShellEsp32.h"
-// TODO: Re-add
-//#include "AppManager.h"
+#include "AppManager.h"
 #include "LedStripDriver.h"
 // TODO: Re-add
 //#include "Sen66Device.h"
@@ -312,19 +311,19 @@ void YRShellEsp32::executeFunction( uint16_t n) {
           case SE_CC_setRunTimeMs:
               t1 = popParameterStack();
               if(m_appMgr) {
-                //m_appMgr->setRunTimeMs(t1);
+                m_appMgr->setRunTimeMs(t1);
               }
           break;
           case SE_CC_setSleepTimeMs:
               t1 = popParameterStack();
               if(m_appMgr) {
-                //m_appMgr->setSleepTimeMs(t1);
+                m_appMgr->setSleepTimeMs(t1);
               }
           break;
           case SE_CC_setSleepEnable:
               t1 = popParameterStack();
               if(m_appMgr) {
-                //m_appMgr->setSleepEnabled(t1);
+                m_appMgr->setSleepEnabled(t1);
               }
           break;
           case SE_CC_attemptReconnect:
@@ -531,9 +530,9 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               break;
           case SE_CC_storePreferences:
               if(m_pref) {
-                // if(m_appMgr) {
-                //   m_appMgr->save(*m_pref);
-                // }
+                if(m_appMgr) {
+                  m_appMgr->save();
+                }
                 if(m_wifiConnection) {
                   m_wifiConnection->save();
                 }

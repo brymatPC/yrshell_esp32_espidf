@@ -9,6 +9,7 @@
 #include "nvs_flash.h"
 
 #include <IntervalTimer.h>
+#include "AppManager.h"
 #include "LedStripDriver.h"
 #include <BleConnection.h>
 #include "WifiConnection.h"
@@ -18,20 +19,21 @@
 #define YRSHELL_ON_TELNET
 #define LOCAL_LOG_BUFFER_SIZE 8192
 
+static char s_appName[] = "ESP32 BLE Test";
+static char s_appVersion[] = "0.9.0";
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
 
 IntervalTimer m_timer;
 IntervalTimer m_wifiTimer;
 CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_logQ;
+AppManager appMgr(s_appName, s_appVersion);
 YRShellEsp32 shell;
 LedStripDriver ledStrip;
 BleConnection bleConnection;
 WifiConnection wifiConnection(&ledStrip);
 TelnetServer telnetServer;
 TelnetLogServer telnetLogServer;
-
-bool setupComplete = false;
 
 bool logOut(char c) {
   static char logOverflow[] = "\r\n\nLOG DATA DROPPED\r\n\n";
@@ -67,17 +69,16 @@ static void loop(void *pvParameters) {
     unsigned telnetLogPort = 2023;
     unsigned telnetLogEnabled = false;
 
-    m_timer.setInterval(2000);
     m_wifiTimer.setInterval(5000);
 
-
+    appMgr.init();
     ledStrip.setup();
     bleConnection.setup();
 
     wifiConnection.setup();
-    setupComplete = true;
 
     shell.setLedDriver(&ledStrip);
+    shell.setAppMgr(&appMgr);
     shell.setWifiConnection(&wifiConnection);
     shell.setBleConnection(&bleConnection);
     shell.setLedStrip(&ledStrip);
@@ -85,10 +86,6 @@ static void loop(void *pvParameters) {
 
     while(1) {
         Sliceable::sliceAll( );
-
-        if(m_timer.isNextInterval()) {
-            ESP_LOGI(TAG, "Tick: %lu", HW_getMillis());
-        }
 
         if(m_wifiTimer.isNextInterval()) {
             if(!wifiConnection.enabled()) {
@@ -140,6 +137,7 @@ extern "C" void app_main() {
 
     esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("Main   ", ESP_LOG_INFO);
+    esp_log_level_set("AppMgr ", ESP_LOG_INFO);
     esp_log_level_set("LedStr ", ESP_LOG_INFO);
     esp_log_level_set("BleCon ", ESP_LOG_INFO);
     esp_log_level_set("WifiCon", ESP_LOG_INFO);
