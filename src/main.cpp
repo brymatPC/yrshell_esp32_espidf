@@ -12,6 +12,7 @@
 #include <BleConnection.h>
 #include "WifiConnection.h"
 #include "TelnetServer.h"
+#include "YRShellEsp32.h"
 
 #define YRSHELL_ON_TELNET
 #define LOCAL_LOG_BUFFER_SIZE 8192
@@ -24,12 +25,14 @@ IntervalTimer m_timer;
 IntervalTimer m_bleTimer;
 IntervalTimer m_wifiTimer;
 CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_logQ;
+YRShellEsp32 shell;
 LedStripDriver ledStrip;
 BleConnection bleConnection;
 WifiConnection wifiConnection(&ledStrip);
-//TelnetServer telnetServer;
+TelnetServer telnetServer;
 TelnetLogServer telnetLogServer;
 
+bool setupComplete = false;
 
 bool logOut(char c) {
   static char logOverflow[] = "\r\n\nLOG DATA DROPPED\r\n\n";
@@ -61,6 +64,7 @@ int custom_log_handler(const char* format, va_list args) {
 
 static void loop(void *pvParameters) {
     unsigned telnetPort = 23;
+    unsigned telnetEnabled = false;
     unsigned telnetLogPort = 2023;
     unsigned telnetLogEnabled = false;
 
@@ -74,10 +78,16 @@ static void loop(void *pvParameters) {
     ledStrip.setup();
     bleConnection.setup();
 
+    shell.setLedDriver(&ledStrip);
+    shell.setWifiConnection(&wifiConnection);
+    shell.setBleConnection(&bleConnection);
+    shell.setLedStrip(&ledStrip);
+    shell.init();
+
     while(1) {
         Sliceable::sliceAll( );
 
-        if(m_setupTimer.hasIntervalElapsed()) {
+        if(!setupComplete && m_setupTimer.hasIntervalElapsed()) {
 
             wifiConnection.setup();
 
@@ -104,6 +114,7 @@ static void loop(void *pvParameters) {
 
             ESP_LOGI(TAG, "Minimum free heap size: %d bytes", esp_get_minimum_free_heap_size());
 
+            setupComplete = true;
             m_setupTimer.setInterval(1000000);
 
         }
@@ -128,6 +139,13 @@ static void loop(void *pvParameters) {
                 telnetLogServer.init( telnetLogPort);
                 telnetLogServer.enable(true);
                 telnetLogEnabled = true;
+            }
+        }
+
+        if(!telnetEnabled && wifiConnection.isHostActive()) {
+            if( telnetPort != 0) {
+                telnetServer.init( telnetPort, &shell.getInq(), &shell.getOutq());
+                telnetEnabled = true;
             }
         }
 
@@ -161,6 +179,8 @@ extern "C" void app_main() {
     esp_log_level_set("BleCon ", ESP_LOG_INFO);
     esp_log_level_set("WifiCon", ESP_LOG_INFO);
     esp_log_level_set("TelnetS", ESP_LOG_INFO);
+    esp_log_level_set("YRShell", ESP_LOG_INFO);
+    esp_log_level_set("Perf   ", ESP_LOG_INFO);
 
     ESP_LOGI(TAG, "Main Startup");
 

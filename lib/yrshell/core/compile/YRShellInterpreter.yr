@@ -1,0 +1,135 @@
+
+dictClear
+
+: ps? s' PARAMETER STACK: ' .str psd? 0!= [ psd? { dup ps@ . 1 - dup 0== } drop ] cr
+: rs? s'    RETURN STACK: ' .str rsd? 0!= [ rsd? 1 - { dup rs@ . 1 - dup -1 == } drop ] cr
+: cs? s'   COMPILE STACK: ' .str csd? 0!= [ csd? 1 - { dup cs@ . 1 - dup -1 == } drop ] cr
+: st? ps? rs? cs?
+
+: _cd0 s' \rstatic const uint16_t ' .str
+: _cxc dup 0x20 < over 0x7E > | [ drop 0x2e ] emit
+: _cxb dup 0xFF & _cxc 8 >> _cxc 1 +
+: _cxa dup getCurrentDictionary _cxb
+: _cx0 _cxa _cxa _cxa _cxa _cxa _cxa _cxa _cxa _cxa _cxa _cxa _cxa _cxa _cxa _cxa _cxa drop
+: _cd1 _cd0 s' compiledDictionaryData[] = {\r' .str
+: _cx1 _cd0 s' compiledExtensionDictionaryData[] = {\r' .str
+: _cd2 dup 0x10 - 0xF & 0== [ s' // ' .str dup 0x10 - dup .wx space _cx0 cr ]
+: _cd3 0 { dup getCurrentDictionary .wx s' , ' .str 1 + _cd2 dup getCurrentDictionaryEnd >= } drop
+: _cd4 getCurrentDictionaryEnd 0!= [ _cd3 crlf ] s' };\r' .str
+: _cd5 s' static const CompiledDictionary ' .str
+: _cx5 s' static CompiledDictionary ' .str
+
+: _cd6 s' interpreterCompiledDictionary( compiledDictionaryData, ' .str
+: _cx6 s' compiledExtensionDictionary( compiledExtensionDictionaryData, ' .str
+: _cd7 getCurrentDictionaryLastWord .wx s' , ' .str getCurrentDictionaryEnd .wx
+: _cd8 _cd1 _cd4 _cd5 _cd6 _cd7  s' , YRSHELL_DICTIONARY_INTERPRETER_COMPILED);\r' .str
+: _cx8 _cx1 _cd4 _cx5 _cx6 _cd7 s' , YRSHELL_DICTIONARY_EXTENSION_COMPILED);\r' .str
+: compileInterpreterDictionary _cd8
+: compileExtensionDictionary _cx8
+
+: spaces dup [ { space 1 - dup 0== } ] drop
+: dictInvalid 0xFFFF
+: _wl2 rot dup [ c> drop cr ][ c> spaces ] 0== rot rot dup dictInvalid ==
+: _wl3 .entryName 40 swap - >c
+: wl 0 0 dictInvalid { nextEntry over .bx dup .wx 2dup entryToken .wx 2dup _wl3 _wl2 } 2drop drop cr
+: _wls1 over .bx dup .wx  2dup entryToken .wx 2dup .entryName drop cr
+: wls 0 dictInvalid { nextEntry  isEntryMatch [ _wls1 ] dup dictInvalid == } 2drop drop
+
+: _w over .bx dup .wx  2dup entryToken .wx 2dup .entryName drop cr
+: w 0 dictInvalid { nextEntry  _w dup dictInvalid == } 2drop
+: x 0 dictInvalid { nextEntry  _w dup dictInvalid == } 2drop drop
+
+: _inf0 s'      DICTIONARY_SIZE: ' .str dictionarySize . cr
+: _inf1 s'             PAD_SIZE: ' .str padSize . cr
+: _inf2 s'        NUM_REGISTERS: ' .str numRegisters . cr
+: _inf3 s' PARAMETER_STACK_SIZE: ' .str parameterStackSize . cr
+: _inf4 s'    RETURN_STACK_SIZE: ' .str returnStackSize . cr
+: _inf5 s'   COMPILE_STACK_SIZE: ' .str compileStackSize . cr
+: _inf6 s'             INQ_SIZE: ' .str inqSize . cr
+
+: _inf7 s'         AUX_INQ_SIZE: ' .str auxInqSize . cr
+: _inf8 s'            OUTQ_SIZE: ' .str outqSize . cr
+: _inf9 s'        AUX_OUTQ_SIZE: ' .str auxOutqSize . cr
+: _infa s'     LAST_BUFFER_SIZE: ' .str lastBufferSize . cr
+: _infb s'           Shell Size: ' .str shellSize . cr
+: _infc s' Dictionary used free: ' .str dictionarySize getCurrentDictionaryEnd dup . - . cr
+: _inf _inf0 _inf1 _inf2 _inf3 _inf4 _inf5 _inf6 _inf7 _inf8 _inf9 _infa _infb _infc
+: info cr printShellClass 4 spaces printMainFileName cr cr _inf
+
+: _ts0 s'       COUNT' .str
+: _ts1 s'          MIN' .str
+: _ts2 s'         MAX' .str
+: _ts3 s'       AVERAGE' .str
+: _ts4 _ts0 _ts1 _ts2 _ts3 cr cr
+: _ts5 dup sliceStats dup >r [ . . . . ] r> dup [ over printSliceName ] cr
+: runStats _ts4 0 { _ts5 [ 1 + 0 ][ -1 ] } drop
+: resetStats 0 { dup clearStats [ 1 + 0 ][ -1 ] } drop
+
+: _dr0  dup numRegisters < [  dup @ . 1 + ]
+: _dr1 dup . s' : ' .str  _dr0 _dr0 _dr0 _dr0 _dr0 _dr0 _dr0 _dr0 cr
+: regs 0 { _dr1 dup numRegisters >= } drop
+
+
+//TODO fix dc iFUNCTION
+
+// resolveRelative ( token_addr token_addr -- token_addr token_addr )
+: resolveRelative dup v_dictionaryMask  & v_dictionaryRelative == [ over v_dictionaryMask & swap v_dictionaryMask ~ & | ]
+
+: _dc5 s'  ERROR[ ' .str . s' ] ' .str
+// _dc4 ( dict index  --  0 -1 | dict index 0)
+: _dc4 dup dictInvalid == [ 2drop 0 -1 ][ 0 ]
+// _dc3 ( dict index -- -1 -1 )
+: _dc3 space .entryName drop -1 -1
+// _dc2 ( dict index -- dict index token)
+: _dc2 nextEntry 2dup entryToken
+
+// dcwName ( token_addr token -- )
+: dcwName resolveRelative >c 0 dictInvalid { _dc2 c> dup >c  == [ _dc3 ][ _dc4 ] } c> swap 0== [ _dc5 ][ drop ]
+
+// dcwa ( token_addr token -- token_addr t/f )
+: dcwa dup v_string != [ -1 ][ drop 1 + dup s'  s\' ' .str .rawStr 0x27 emit dup strlen 2 / + 0 ]
+// dcw8 ( token_addr token -- token_addr t/f )
+: dcw8 dup v_else != [ dup v_then != [ dcwa ][ drop s'  ]' .str 0 ] ][ drop 1 + s'  ][' .str 0 ]
+// dcw6 ( token_addr token -- token_addr t/f )
+: dcw6 dup v_until != [ dup v_if != [ dcw8 ][ drop 1 + s'  [' .str 0 ] ][ drop 1 + s'  }' .str 0 ]
+// dcw4 ( token_addr token -- token_addr t/f )
+: dcw4 dup v_nint16 != [ dup v_begin != [ dcw6 ][ drop s'  {' .str 0 ] ][ drop 1 + dup fetchToken 0xFFFF0000 + space .n 0 ]
+// dcw3 ( token_addr token -- token_addr t/f )
+: dcw3 dup v_uint32 != [ dcw4 ][ drop 1 + dup fetchToken swap 1 + tuck fetchToken 16 << + space .n 0 ]
+// dcw1 ( token_addr token -- token_addr t/f )
+: dcw1 dup v_return != [ dup v_uint16 != [ dcw3 ][ drop 1 + dup fetchToken space .n 0 ] ][ 0 ]
+// dcw ( token_addr -- token_addr )
+: dcw dup fetchToken dcw1 [ dcwName ]
+
+// _dc0 ( token_addr -- )
+: _dc0 { dup fetchToken v_return == [ drop -1 ][ dcw 1 + 0 ] }
+// dc ( string -- )
+: dc s' : ' .str dup .str find dup 0xFFFF != [ _dc0 ][ _dc5 ] cr
+
+// duw2 ( token_addr+256 token_addr -- token_addr+256 token_addr t/f )
+: duw2 dup fetchToken dup .wx v_return == >r 1 + 2dup <= r> |
+// duw1 ( token_addr+256 token_addr -- token_addr+256 token_addr t/f )
+: duw1 dup isFunction [ s' iFUNCTION' .str ][ { duw2 } ]
+// duw ( string -- )
+: duw find dup 0xFFFF != [ dup .wx s' : ' .str dup 0x100 + swap duw1 2drop ][ drop ] cr
+
+// _dca ( dict index token --  dict index )
+: _dca dup isFunction [ s' // ' .str drop 2dup .entryName drop cr ][ s' : ' .str >c 2dup .entryName drop c> _dc0  cr ]
+
+//dAT ( n -- dict entry)
+: dAT1 rot 1 + dup >c rot rot c> c> dup >c ==
+: dAT >c 0 0 dictInvalid { nextEntry dup dictInvalid == [ -1 ][ dAT1 ] } c> drop rot drop
+
+// dcCount( -- count)
+: dcCount 0 0 dictInvalid { nextEntry dup dictInvalid == [ -1 ][ rot 1 + rot rot  0 ] } 2drop
+
+// dcAll ( -- )
+: dcAll dcCount { dup dAT 2dup entryToken _dca 2drop 1 - dup 0 == }
+
+// key ( -- c )
+: key { key? [ -1 ] }
+
+// esc?
+: esc? key? [ 0x1B == ]
+
+compileInterpreterDictionary
