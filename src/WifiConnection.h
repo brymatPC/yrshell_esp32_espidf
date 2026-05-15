@@ -31,7 +31,7 @@ private:
     bool m_tryReconnect;
 
     void configBasicAp();
-    void configStation();
+    void apConnect();
     void startScan();
 
 protected:
@@ -46,6 +46,8 @@ protected:
     bool m_hostActive;
     void changeState( uint8_t state);
     void hostConfig( void);
+    void apDisconnect(void);
+    bool stationConnect(const char *ssid, const char *passphrase);
 
 public:
     WifiConnection( LedDriver* led, uint32_t connectTimeout = 5000); 
@@ -68,8 +70,8 @@ public:
     const char* getNetworkIp( void);
     const char* getNetworkName( uint8_t index);
     const char* getNetworkPassword( uint8_t index);
-    //void getHostMac( char* buf) { WiFi.softAPmacAddress( (uint8_t*) buf); }
-    //void getNetworkMac( char* buf) { WiFi.macAddress( (uint8_t*) buf); }
+    void getHostMac( char* buf);
+    void getNetworkMac( char* buf);
     uint8_t getNumberOfNetworks( void) { return MAX_WIFI_NETWORKS; }
 
     void setHostName( const char* networkName);

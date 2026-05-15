@@ -76,7 +76,11 @@ static bool stringToUnsignedX( const char* P, uint32_t* V) {
     return rc;
 }
 
+static esp_netif_t *_esp_sta_netif = nullptr;
+static esp_netif_t *_esp_ap_netif = nullptr;
+
 static bool m_scanComplete = false;
+static bool m_stationConnected = false;
 
 static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
@@ -91,6 +95,14 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
         esp_wifi_scan_get_ap_num(&count);
         ESP_LOGI(TAG, "Wifi Scan complete, found %u networks", count);
         m_scanComplete = true;
+    } else if (event_id == WIFI_EVENT_STA_CONNECTED) {
+        wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
+        ESP_LOGI(TAG, "joined station " MACSTR " , AID=%d", MAC2STR(event->mac), event->aid);
+        m_stationConnected = true;
+    } else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
+        ESP_LOGI(TAG, "left station " MACSTR ", AID=%d, reason=%d", MAC2STR(event->mac), event->aid, event->reason);
+        m_stationConnected = false;
     }
 }
 
@@ -127,7 +139,8 @@ void WifiConnection::setup() {
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_ap();
+    _esp_ap_netif = esp_netif_create_default_wifi_ap();
+    _esp_sta_netif = esp_netif_create_default_wifi_sta();
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
@@ -136,6 +149,7 @@ void WifiConnection::setup() {
                                                         &wifi_event_handler,
                                                         NULL,
                                                         NULL));
+
 
     err = nvs_open(s_PREF_NAMESPACE, NVS_READWRITE, &_handle);
     if(err != ESP_OK) {
@@ -306,77 +320,88 @@ void WifiConnection::slice( ) {
         }
     break;
 
-    // case STATE_INIT_CONNECT:
-    //   if( m_led) {
-    //     m_led->off();
-    //   }
-    //   if( m_enable && getNumberOfNetworks() >= 0) {
-    //     m_timer.setInterval( m_connectTimeout);
-    //     changeState( STATE_LOAD_NETWORK_NAME);
-    //   }
-    // break;
+    case STATE_INIT_CONNECT:
+        if( m_led) {
+            m_led->off();
+        }
+        if( m_enable && getNumberOfNetworks() >= 0) {
+            m_timer.setInterval( m_connectTimeout);
+            changeState( STATE_LOAD_NETWORK_NAME);
+        }
+    break;
 
-    // case STATE_LOAD_NETWORK_NAME:
-    //   if( m_led) {
-    //     m_led->blink( BLINK_SPEED_CONNECTING_MS);
-    //   }
-    //   p = getNetworkName( m_currentAp );
-    //   q = getNetworkPassword( m_currentAp );
-    //   ESP_LOGI(TAG, "Configured Network: %u, %s, %s", m_currentAp, p, q);
-    //   if( *p == '\0' || *q == '\0') {
-    //     ESP_LOGD(TAG, "Network not configured, going to wait state");
-    //     changeState( STATE_WAIT_CONNECT);
-    //   } else {
-    //     WiFi.begin( (char*)p,  q);
-    //     changeState( STATE_WAIT_CONNECT);
-    //     ESP_LOGD(TAG, "Connecting %s", p);
-    //   }
-    // break;
+    case STATE_LOAD_NETWORK_NAME:
+        if( m_led) {
+            m_led->blink( BLINK_SPEED_CONNECTING_MS);
+        }
+        p = getNetworkName( m_currentAp );
+        q = getNetworkPassword( m_currentAp );
+        ESP_LOGI(TAG, "Configured Network: %u, %s, %s", m_currentAp, p, q);
+        if( *p == '\0' || *q == '\0') {
+            ESP_LOGD(TAG, "Network not configured, going to wait state");
+            changeState( STATE_WAIT_CONNECT);
+        } else {
+            //WiFi.begin( (char*)p,  q);
+            esp_wifi_set_mode(WIFI_MODE_STA);
+            stationConnect((char*)p,  q);
+            changeState( STATE_WAIT_CONNECT);
+            ESP_LOGD(TAG, "Connecting %s", p);
+        }
+    break;
 
-    // case STATE_WAIT_CONNECT:
-    //   if( WiFi.status() == WL_CONNECTED) {
-    //     m_networkIp = (uint32_t) WiFi.localIP();
-    //     changeState( STATE_CONNECTING);
-    //   } else if(m_requestOff) {
-    //     changeState( STATE_TURN_OFF);
-    //   } else if( m_timer.hasIntervalElapsed()) {
-    //     WiFi.disconnect(false);
-    //     changeState( STATE_NEXT_NETWORK);
-    //   } 
-    // break;
+    case STATE_WAIT_CONNECT:
+        if( m_stationConnected) {
+            //m_networkIp = (uint32_t) WiFi.localIP();
+            esp_netif_ip_info_t ip;
+            if (esp_netif_get_ip_info(_esp_sta_netif, &ip) == ESP_OK) {
+                m_networkIp = ip.ip.addr;
+            } else {
+                ESP_LOGW(TAG, "Failed to get station ip - 0x%x: %s", err, esp_err_to_name(err));
+            }
+            changeState( STATE_CONNECTING);
+        } else if(m_requestOff) {
+            changeState( STATE_TURN_OFF);
+        } else if( m_timer.hasIntervalElapsed()) {
+            esp_err_t err = esp_wifi_disconnect();
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "STA disconnect failed! 0x%x: %s", err, esp_err_to_name(err));
+            }
+            changeState( STATE_NEXT_NETWORK);
+        }
+    break;
 
-    // case STATE_NEXT_NETWORK:
-    //   m_currentAp++;
-    //   if( m_currentAp >= getNumberOfNetworks() ) {
-    //     m_currentAp = 0;
-    //     ESP_LOGW(TAG, "Failed to connect to WiFi Station, reverting to Access Point: %s", m_hostName);
-    //     changeState( STATE_CONFIGURE_AP);
-    //   } else {
-    //     changeState( STATE_INIT_CONNECT);
-    //   }
-    // break;
+    case STATE_NEXT_NETWORK:
+        m_currentAp++;
+        if( m_currentAp >= getNumberOfNetworks() ) {
+            m_currentAp = 0;
+            ESP_LOGW(TAG, "Failed to connect to WiFi Station, reverting to Access Point: %s", m_hostName);
+            changeState( STATE_CONFIGURE_AP);
+        } else {
+            changeState( STATE_INIT_CONNECT);
+        }
+    break;
 
-    // case STATE_CONNECTING:
-    //   p = getNetworkName( m_currentAp );
-    //   q = getNetworkIp();
-    //   ESP_LOGI(TAG, "Connected %s, %s", p, q);
-    //   m_timer.setInterval( 500);
-    //   changeState( STATE_CONNECTED);
-    //   if( m_led) {
-    //     m_led->on();
-    //   }
-    // break;
+    case STATE_CONNECTING:
+        p = getNetworkName( m_currentAp );
+        q = getNetworkIp();
+        ESP_LOGI(TAG, "Connected %s, %s", p, q);
+        m_timer.setInterval( 500);
+        changeState( STATE_CONNECTED);
+        if( m_led) {
+            m_led->on();
+        }
+    break;
 
-    // case STATE_CONNECTED:
-    //   if(m_requestOff) {
-    //     changeState( STATE_TURN_OFF);
-    //   } else if( m_timer.isNextInterval() ) {
-    //     if(WiFi.status() != WL_CONNECTED) {
-    //       ESP_LOGI(TAG, "Disconnected %s", getNetworkName( m_currentAp ));
-    //       changeState( STATE_NEXT_NETWORK);
-    //     }
-    //   }
-    // break;
+    case STATE_CONNECTED:
+        if(m_requestOff) {
+            changeState( STATE_TURN_OFF);
+        } else if( m_timer.isNextInterval() ) {
+            if(!m_stationConnected) {
+                ESP_LOGI(TAG, "Disconnected %s", getNetworkName( m_currentAp ));
+                changeState( STATE_NEXT_NETWORK);
+            }
+        }
+    break;
 
     case STATE_INIT_AP:
         err = esp_wifi_disconnect();
@@ -412,25 +437,21 @@ void WifiConnection::slice( ) {
             ESP_LOGI(TAG, "Parse %d, %d network", apCount, m);
             for( int j = 0; j < apCount; j++ ) {
                 esp_wifi_scan_get_ap_record(&ap_info);
-                ESP_LOGI(TAG, "RSSI %d, network %s", ap_info.rssi, ap_info.ssid);
-                // for( k = 0; k < m; k++ ) {
-                //   if( !strcmp( WiFi.SSID( j).c_str(), getNetworkName( k)) ) {
-                //     int32_t RSSI;
-                //     RSSI = WiFi.RSSI( j);
-                //     if( RSSI > m_maxRssi) {
-                //       m_maxRssi = RSSI;
-                //       m_maxRssiIndex = k;
-                //     }
-                //     ESP_LOGI(TAG, "Max RSSI index %d, max RSSI %d, network %s", m_maxRssiIndex, 0 - m_maxRssi, WiFi.SSID( j).c_str());
-                //   }
-                // }
+                for( k = 0; k < m; k++ ) {
+                  if( !strcmp( (char *)ap_info.ssid, getNetworkName( k)) ) {
+                    int32_t RSSI = ap_info.rssi;
+                    if( RSSI > m_maxRssi) {
+                      m_maxRssi = RSSI;
+                      m_maxRssiIndex = k;
+                    }
+                    ESP_LOGI(TAG, "Max RSSI index %d, max RSSI %d, network %s", m_maxRssiIndex, 0 - m_maxRssi, (char *)ap_info.ssid);
+                  }
+                }
             }
             esp_wifi_clear_ap_list();
-            //changeState( STATE_INIT_CONNECT);
-            changeState( STATE_CONFIGURE_AP);
+            changeState( STATE_INIT_CONNECT);
         } else if( m_timer.hasIntervalElapsed()) {
             ESP_LOGW(TAG, "Scan timeout");
-            //changeState( STATE_INIT_CONNECT);
             changeState( STATE_CONFIGURE_AP);
       }
     break;
@@ -444,7 +465,7 @@ void WifiConnection::slice( ) {
         } else {
             esp_netif_ip_info_t ip;
             hostConfig( );
-            configStation();
+            apConnect();
             m_hostActive = true;
             ESP_LOGI(TAG, "Host Up: %s, %s", p, q);
             if(esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_AP_DEF"), &ip) == ESP_OK) {
@@ -470,28 +491,30 @@ void WifiConnection::slice( ) {
     case STATE_IDLE:
       if(m_tryReconnect) {
             m_tryReconnect = false;
-            // m_currentAp = 0;
-            // ESP_LOGI(TAG, "Reconnect requested, retrying configured networks");
-            // changeState( STATE_INIT_CONNECT);
+            m_currentAp = 0;
+            ESP_LOGI(TAG, "Reconnect requested, retrying configured networks");
+            changeState( STATE_INIT_CONNECT);
       }
     break;
-    // case STATE_TURN_OFF:
-    //   if(WiFi.status() == WL_CONNECTED) {
-    //       WiFi.disconnect();
-    //   }
-    //   if(m_hostActive) {
-    //     WiFi.softAPdisconnect();
-    //     m_hostActive = false;
-    //   }
-
-    //   changeState( STATE_WAIT_OFF);
-    // break;
-    // case STATE_WAIT_OFF:
-    //   if(WiFi.status() == WL_DISCONNECTED || WiFi.status() == WL_STOPPED) {
-    //       ESP_LOGI(TAG, "WIFI off");
-    //       changeState( STATE_OFF);
-    //   }
-    // break;
+    case STATE_TURN_OFF:
+        if(m_stationConnected) {
+            esp_err_t err = esp_wifi_disconnect();
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "STA disconnect failed! 0x%x: %s", err, esp_err_to_name(err));
+            }
+        }
+        if(m_hostActive) {
+            apDisconnect();
+            m_hostActive = false;
+        }
+        changeState( STATE_WAIT_OFF);
+    break;
+    case STATE_WAIT_OFF:
+      if(!m_stationConnected) {
+          ESP_LOGI(TAG, "WIFI off");
+          changeState( STATE_OFF);
+      }
+    break;
     case STATE_OFF:
         m_requestOff = false;
         // Wait for reboot or wake up
@@ -525,18 +548,18 @@ void WifiConnection::hostConfig( ) {
     if( stringToUnsignedX( m_hostMask, &v)) {
         mask = v;
     }
+    // TODO: Allow configuration of AP
     // if( !WiFi.softAPConfig( IPAddress(ip), IPAddress(gw) , IPAddress( mask))) {
     //   ESP_LOGW(TAG, "Host config failed");
     // }
 }
-
 void WifiConnection::configBasicAp() {
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
 
 }
-void WifiConnection::configStation(void)
+void WifiConnection::apConnect(void)
 {
     wifi_config_t wifi_config = {
         .ap = {
@@ -565,6 +588,44 @@ void WifiConnection::configStation(void)
 
     ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s channel:1", m_hostName, m_hostPassword);
 }
+void WifiConnection::apDisconnect(void) {
+    wifi_config_t conf;
+    memset(&conf, 0, sizeof(wifi_config_t));
+    conf.ap.channel = 1;
+    conf.ap.max_connection = 4;
+    conf.ap.beacon_interval = 100;
+    esp_err_t err = esp_wifi_set_config(WIFI_IF_AP, &conf);
+    if (err) {
+        ESP_LOGW(TAG, "Set AP config failed! 0x%x: %s", err, esp_err_to_name(err));
+    }
+}
+bool WifiConnection::stationConnect(const char *ssid, const char *passphrase) {
+    wifi_config_t conf;
+    memset(&conf, 0, sizeof(wifi_config_t));
+    conf.sta.channel = 0;
+    conf.sta.scan_method = WIFI_FAST_SCAN;
+    conf.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
+    conf.sta.threshold.rssi = -127;
+    conf.sta.pmf_cfg.capable = true;
+    if (ssid != NULL && ssid[0] != 0) {
+        memcpy((char *)conf.sta.ssid, ssid, 32);
+        if (passphrase != NULL && passphrase[0] != 0) {
+            conf.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+            memcpy((char *)conf.sta.password, passphrase, 64);
+        }
+    }
+    esp_err_t err = esp_wifi_set_config(WIFI_IF_STA, &conf);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "STA clear config failed! 0x%x: %s", err, esp_err_to_name(err));
+        return false;
+    }
+    err = esp_wifi_connect();
+    if (err) {
+        ESP_LOGW(TAG, "STA connect failed! 0x%x: %s", err, esp_err_to_name(err));
+        return false;
+    }
+    return true;
+}
 void WifiConnection::startScan() {
     wifi_scan_config_t config;
     memset(&config, 0, sizeof(wifi_scan_config_t));
@@ -580,3 +641,17 @@ void WifiConnection::startScan() {
         m_scanComplete = false;
     }
 }
+
+void WifiConnection::getHostMac( char* buf) {
+    esp_err_t err = esp_netif_get_mac(_esp_ap_netif, (uint8_t *) buf);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to get netif mac: 0x%04x %s", err, esp_err_to_name(err));
+    }
+}
+void WifiConnection::getNetworkMac( char* buf) {
+    esp_err_t err = esp_netif_get_mac(_esp_sta_netif, (uint8_t *) buf);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to get netif mac: 0x%04x %s", err, esp_err_to_name(err));
+    }
+}
+

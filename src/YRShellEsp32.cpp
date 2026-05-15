@@ -376,8 +376,7 @@ void YRShellEsp32::executeFunction( uint16_t n) {
           case SE_CC_getHostMac:
               m_textBuffer[ 0] = '\0';
               if( m_wifiConnection) {
-                // TODO: Re-add
-                //m_wifiConnection->getHostMac(m_textBuffer);
+                m_wifiConnection->getHostMac(m_textBuffer);
               }
               pushParameterStack( 0);
               break;
@@ -415,8 +414,7 @@ void YRShellEsp32::executeFunction( uint16_t n) {
           case SE_CC_getNetworkMac:
               m_textBuffer[ 0] = '\0';
               if( m_wifiConnection) {
-                // TODO: Re-add
-                //m_wifiConnection->getNetworkMac( m_textBuffer );
+                m_wifiConnection->getNetworkMac( m_textBuffer );
               }
               pushParameterStack( 0);
               break;
