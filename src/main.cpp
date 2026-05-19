@@ -67,7 +67,7 @@ int custom_log_handler(const char* format, va_list args) {
 bool mountLittleFs() {
     esp_vfs_littlefs_conf_t conf = {
         .base_path = "/littlefs",
-        .partition_label = "spiffs",
+        .partition_label = "littlefs",
         .partition = NULL,
         .format_if_mount_failed = false,
         .read_only = false,

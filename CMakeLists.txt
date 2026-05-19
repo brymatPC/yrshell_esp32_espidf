@@ -10,4 +10,4 @@ project(esp32_idf_native)
 set(FLASH_IN_PROJECT "yes")
 
 # Create filesystem image and flash it during programming
-littlefs_create_partition_image(spiffs data FLASH_IN_PROJECT)
+littlefs_create_partition_image(littlefs data FLASH_IN_PROJECT)

@@ -709,7 +709,7 @@ void YRShellEsp32::executeFunction( uint16_t n) {
           {
             size_t total = 0;
             size_t used = 0;
-            esp_err_t err = esp_littlefs_info("spiffs", &total, &used);
+            esp_err_t err = esp_littlefs_info("littlefs", &total, &used);
               if (err != ESP_OK) {
                 total = 0;
                 used = 0;
