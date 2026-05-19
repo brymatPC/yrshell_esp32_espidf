@@ -268,7 +268,7 @@ void WifiConnection::tryReconnect() {
 }
 const char* WifiConnection::getNetworkIp( void) {
     static char ipStr[MAX_WIFI_ENTRY_LEN];
-    snprintf(ipStr, MAX_WIFI_ENTRY_LEN, "0x%08X", m_networkIp);
+    snprintf(ipStr, MAX_WIFI_ENTRY_LEN, "0x%08X", (unsigned int) m_networkIp);
     return ipStr;
 }
 const char* WifiConnection::getNetworkName( uint8_t index) {

@@ -16,6 +16,8 @@
 #include "TelnetServer.h"
 #include "YRShellEsp32.h"
 
+#include "esp_littlefs.h"
+
 #define YRSHELL_ON_TELNET
 #define LOCAL_LOG_BUFFER_SIZE 8192
 
@@ -59,6 +61,25 @@ int custom_log_handler(const char* format, va_list args) {
       }
     }
     return ret; 
+}
+
+bool mountLittleFs() {
+    esp_vfs_littlefs_conf_t conf = {
+        .base_path = "/littlefs",
+        .partition_label = "spiffs",
+        .partition = NULL,
+        .format_if_mount_failed = false,
+        .read_only = false,
+        .dont_mount = false,
+        .grow_on_mount = true
+    };
+
+    esp_err_t err = esp_vfs_littlefs_register(&conf);
+    if (err == ESP_FAIL) {
+        ESP_LOGE(TAG, "Mounting LittleFS failed! Error: %d", err);
+        return false;
+    }
+    return true;
 }
 
 static void loop(void *pvParameters) {
@@ -129,6 +150,8 @@ extern "C" void app_main() {
     esp_log_level_set("Perf   ", ESP_LOG_INFO);
 
     ESP_LOGI(TAG, "Main Startup");
+
+    mountLittleFs();
 
     uint32_t ret = xTaskCreate(&loop, "loop", 4096, NULL, 5, &xHandle);
 

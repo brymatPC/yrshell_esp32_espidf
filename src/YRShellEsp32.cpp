@@ -13,6 +13,8 @@
 //#include "UploadDataClient.h"
 #include "Utilities.h"
 
+#include <esp_littlefs.h>
+
 #include <BleConnection.h>
 #include <time.h>
 #include <esp_idf_version.h>
@@ -665,11 +667,18 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               // }
               break;
           case SE_CC_flashSize:
-              // TODO: Re-Add
-              t1 = 0;
-              t2 = 0;
-              pushParameterStack( t1);
-              pushParameterStack( t2);
+          {
+            size_t total = 0;
+            size_t used = 0;
+            esp_err_t err = esp_littlefs_info("spiffs", &total, &used);
+              if (err != ESP_OK) {
+                total = 0;
+                used = 0;
+                ESP_LOGW(TAG, "Failed to get littlefs info, err: %lu", err);
+              }
+              pushParameterStack( (uint32_t) total);
+              pushParameterStack( (uint32_t) used);
+          }
             break;
           case SE_CC_flashInfo:
             printFlashSizes();
