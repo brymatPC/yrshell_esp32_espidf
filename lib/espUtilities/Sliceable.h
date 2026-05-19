@@ -1,7 +1,6 @@
 #ifndef Sliceable_h
 #define Sliceable_h
 #include <stdint.h>
-#include <stddef.h>
 
 #include "HardwareSpecific.h"
 #include "HiResTimer.h"
