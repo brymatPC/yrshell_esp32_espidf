@@ -5,6 +5,8 @@
 
 #include "YRShellExec.h"
 
+#include <stdio.h>
+
 class DebugLog;
 class Preferences;
 class AppManager;
@@ -140,6 +142,8 @@ protected:
   UploadDataClient* m_uploadClient;
   IntervalTimer m_execTimer;
   bool m_lastPromptEnable, m_lastCommandEcho;
+  bool m_fileOpen, m_initialFileLoaded;
+  FILE *m_file;
   
   virtual void executeFunction( uint16_t n);
   virtual const char* shellClass( void) { return "YRShellEsp32"; }
@@ -167,6 +171,7 @@ public:
   void setUploadClient(UploadDataClient *client) { m_uploadClient = client; }
 
   virtual void slice( void);
+  void loadFile( const char* fname, bool exec = true);
 
   inline bool isAuxQueueInUse( void) { return m_useAuxQueues; }
   CircularQBase<char>& getAuxOutq(void) { return *m_AuxOutq; };

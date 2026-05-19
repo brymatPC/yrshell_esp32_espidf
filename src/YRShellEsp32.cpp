@@ -26,7 +26,7 @@
 
 static const char* TAG = "YRShell";
 
-#define INITIAL_LOAD_FILE "/start.yr"
+#define INITIAL_LOAD_FILE "/littlefs/start.yr"
 
 static char s_testRoute[] = "/yrshell";
 
@@ -80,6 +80,8 @@ static const FunctionEntry yr8266ShellExtensionFunctions[] = {
     { SE_CC_setNetworkPassword,   "setNetworkPassword" },
 
     { SE_CC_saveNetworkParameters,"saveNetworkParameters" },
+
+    { SE_CC_loadFile,              "loadFile" },
 
     { SE_CC_dbgM,                  "logM" },
     { SE_CC_dbgDM,                 "logDM" },
@@ -140,6 +142,8 @@ static char s_uploadData[] = "{\"data\":32}";
 
 YRShellEsp32::YRShellEsp32() {
   m_telnetLogServer = NULL;
+  m_fileOpen = false;
+  m_initialFileLoaded = false;
   m_initialized = false;
   m_auxBufIndex = 0;
 }
@@ -182,9 +186,38 @@ void YRShellEsp32::execString( const char* p) {
   }
 }
 
-
+void YRShellEsp32::loadFile( const char* fname, bool exec) {
+  if( m_fileOpen) {
+    ESP_LOGI(TAG, "File already open");
+  } else {
+    if( fname == NULL || fname[0] == '\0') {
+      ESP_LOGI(TAG, "no_valid_file");
+    } else {
+      m_file = fopen(fname, "r");
+      if( !m_file) {
+        ESP_LOGI(TAG, "Failed: %s", fname);
+      } else {
+        if( exec) {
+          requestUseAuxQueues();
+        }
+        m_fileOpen = true;
+        ESP_LOGI(TAG, "Loading: %s", fname);
+      }
+    }
+  }
+}
 void YRShellEsp32::slice() {
   YRShellBase::slice();
+  if( m_fileOpen && m_auxInq.spaceAvailable(10)) {
+    int c = fgetc(m_file);
+    if( c != -1) {
+      m_auxInq.put( c);
+    } else {
+      fclose(m_file);
+      m_fileOpen = false;
+      ESP_LOGI(TAG, "Closing File");
+    } 
+  }
 
   if( m_exec && m_execTimer.hasIntervalElapsed()) {
     m_exec = false;
@@ -213,6 +246,11 @@ void YRShellEsp32::slice() {
   } else if( m_auxBufIndex > 0) {
     ESP_LOGV(TAG, "AuxBuf: %s", m_auxBuf);
     m_auxBufIndex = 0;
+  }
+
+  if( HW_getMillis() > 5000 && !m_initialFileLoaded && m_initialized && isIdle() ) {
+      m_initialFileLoaded = true;
+      loadFile( INITIAL_LOAD_FILE);
   }
 } 
 
@@ -484,6 +522,9 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               if( m_wifiConnection) {
                   m_wifiConnection->save();
               }
+              break;
+          case SE_CC_loadFile:
+              loadFile( getAddressFromToken(popParameterStack()), false );
               break;
           case SE_CC_dbgM:
               ESP_LOGI(TAG, "%s", getAddressFromToken(popParameterStack()) );
