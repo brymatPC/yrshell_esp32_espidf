@@ -18,3 +18,14 @@ CMakeFiles/
 cmake_install.cmake
 install_manifest.txt
 CTestTestfile.cmake
+
+# Language Servers
+.clangd/
+.ccls-cache/
+compile_commands.json
+
+# ESP-IDF dependencies
+managed_components/
+
+# misc
+*.old
