@@ -8,7 +8,6 @@
 #include <stdio.h>
 
 class DebugLog;
-class Preferences;
 class AppManager;
 class LedDriver;
 class LedStripDriver;
@@ -129,7 +128,6 @@ protected:
   char m_auxBuf[ 128];
   uint8_t m_auxBufIndex;
 
-  Preferences* m_pref;
   TelnetLogServer* m_telnetLogServer;
   AppManager* m_appMgr;
   LedDriver* m_led;
@@ -158,7 +156,6 @@ public:
   void init();
 
   // Provide object instances to drive testing, can be nullptr
-  void setPreferences(Preferences *pref) { m_pref = pref; }
   void setAppMgr(AppManager *appMgr) { m_appMgr = appMgr; }
   void setLedDriver(LedDriver *led) { m_led = led; }
   void setLedStrip(LedStripDriver *strip) { m_ledStrip = strip; }

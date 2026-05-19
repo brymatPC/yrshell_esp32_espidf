@@ -13,7 +13,7 @@
 //#include "UploadDataClient.h"
 #include "Utilities.h"
 
-//#include <esp_littlefs.h>
+#include <esp_littlefs.h>
 
 #include <BleConnection.h>
 #include <time.h>
@@ -577,26 +577,24 @@ void YRShellEsp32::executeFunction( uint16_t n) {
             }
               break;
           case SE_CC_storePreferences:
-              if(m_pref) {
-                if(m_appMgr) {
-                  m_appMgr->save();
-                }
-                if(m_wifiConnection) {
-                  m_wifiConnection->save();
-                }
-                if( m_bleConnection ) {
-                  m_bleConnection->save();
-                }
-                // if(m_victronDevice) {
-                //   m_victronDevice->save(*m_pref);
-                // }
-                // if(m_sen66Device) {
-                //   m_sen66Device->save(*m_pref);
-                // }
-                // if(m_uploadClient) {
-                //   m_uploadClient->save(*m_pref);
-                // }
+              if(m_appMgr) {
+                m_appMgr->save();
               }
+              if(m_wifiConnection) {
+                m_wifiConnection->save();
+              }
+              if( m_bleConnection ) {
+                m_bleConnection->save();
+              }
+              // if(m_victronDevice) {
+              //   m_victronDevice->save();
+              // }
+              // if(m_sen66Device) {
+              //   m_sen66Device->save();
+              // }
+              // if(m_uploadClient) {
+              //   m_uploadClient->save();
+              // }
               break;
           case SE_CC_bleScan:
               if( m_bleConnection ) {
@@ -711,12 +709,12 @@ void YRShellEsp32::executeFunction( uint16_t n) {
           {
             size_t total = 0;
             size_t used = 0;
-            // esp_err_t err = esp_littlefs_info("spiffs", &total, &used);
-            //   if (err != ESP_OK) {
-            //     total = 0;
-            //     used = 0;
-            //     ESP_LOGW(TAG, "Failed to get littlefs info, err: %lu", err);
-            //   }
+            esp_err_t err = esp_littlefs_info("spiffs", &total, &used);
+              if (err != ESP_OK) {
+                total = 0;
+                used = 0;
+                ESP_LOGW(TAG, "Failed to get littlefs info, err: %lu", err);
+              }
               pushParameterStack( (uint32_t) total);
               pushParameterStack( (uint32_t) used);
           }
