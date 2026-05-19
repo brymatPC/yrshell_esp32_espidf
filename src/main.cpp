@@ -69,10 +69,11 @@ bool mountLittleFs() {
         .base_path = "/littlefs",
         .partition_label = "littlefs",
         .partition = NULL,
+        .blockdev = NULL,
         .format_if_mount_failed = false,
         .read_only = false,
         .dont_mount = false,
-        .grow_on_mount = true
+        .grow_on_mount = true,
     };
 
     esp_err_t err = esp_vfs_littlefs_register(&conf);
