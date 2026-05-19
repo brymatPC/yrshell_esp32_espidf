@@ -12,7 +12,7 @@
 // #include <IntervalTimer.h>
 #include "AppManager.h"
 #include "LedStripDriver.h"
-// #include <BleConnection.h>
+#include <BleConnection.h>
 #include "WifiConnection.h"
 #include "TelnetServer.h"
 #include "YRShellEsp32.h"
@@ -31,7 +31,7 @@ CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_logQ;
 AppManager appMgr(s_appName, s_appVersion);
 YRShellEsp32 shell;
 LedStripDriver ledStrip;
-// BleConnection bleConnection;
+BleConnection bleConnection;
 WifiConnection wifiConnection(&ledStrip, 7500);
 TelnetServer telnetServer;
 TelnetLogServer telnetLogServer;
@@ -89,7 +89,7 @@ static void loop(void *pvParameters) {
 
     appMgr.init();
     ledStrip.setup();
-    // bleConnection.setup();
+    bleConnection.setup();
 
     wifiConnection.setup();
     wifiConnection.enable();
@@ -106,7 +106,7 @@ static void loop(void *pvParameters) {
     shell.setLedDriver(&ledStrip);
     shell.setAppMgr(&appMgr);
     shell.setWifiConnection(&wifiConnection);
-    //shell.setBleConnection(&bleConnection);
+    shell.setBleConnection(&bleConnection);
     shell.setLedStrip(&ledStrip);
     shell.init();
 

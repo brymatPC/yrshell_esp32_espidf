@@ -15,7 +15,7 @@
 
 //#include <esp_littlefs.h>
 
-//#include <BleConnection.h>
+#include <BleConnection.h>
 #include <time.h>
 #include <esp_idf_version.h>
 #include "esp_log_custom.h"
@@ -342,7 +342,7 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               t1 = popParameterStack();
               ESP_LOGI(TAG, "Entering deep sleep, timeMs=%u", (unsigned)t1);
               if(m_bleConnection) {
-                //m_bleConnection->off();
+                m_bleConnection->off();
               }
               if(m_wifiConnection) {
                 m_wifiConnection->off();
@@ -585,7 +585,7 @@ void YRShellEsp32::executeFunction( uint16_t n) {
                   m_wifiConnection->save();
                 }
                 if( m_bleConnection ) {
-                  //m_bleConnection->save();
+                  m_bleConnection->save();
                 }
                 // if(m_victronDevice) {
                 //   m_victronDevice->save(*m_pref);
@@ -600,82 +600,82 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               break;
           case SE_CC_bleScan:
               if( m_bleConnection ) {
-                //m_bleConnection->requestScan();
+                m_bleConnection->requestScan();
               }
             break;
           case SE_CC_setBleLogState:
               t1 = popParameterStack();
               if( m_bleConnection ) {
-               //m_bleConnection->setLogState((bleLogState)t1);
+                m_bleConnection->setLogState((bleLogState)t1);
               }
               break;
           case SE_CC_setBleScanInterval:
               t1 = popParameterStack();
               if( m_bleConnection ) {
-                //m_bleConnection->setScanInterval((uint16_t)t1);
+                m_bleConnection->setScanInterval((uint16_t)t1);
               }
               break;
           case SE_CC_setBleScanWindow:
               t1 = popParameterStack();
               if( m_bleConnection ) {
-                //m_bleConnection->setScanWindow((uint16_t)t1);
+                m_bleConnection->setScanWindow((uint16_t)t1);
               }
               break;
           case SE_CC_setBleDuration:
               t1 = popParameterStack();
               if( m_bleConnection ) {
-                //m_bleConnection->setScanDuration(t1);
+                m_bleConnection->setScanDuration(t1);
               }
               break;
           case SE_CC_setBleScanActively:
               t1 = popParameterStack();
               if( m_bleConnection ) {
-                ///m_bleConnection->setScanActively(t1);
+                m_bleConnection->setScanActively(t1);
               }
               break;
           case SE_CC_setBleScanStartInterval:
               t1 = popParameterStack();
               if( m_bleConnection ) {
-                //m_bleConnection->setScanStartInterval(t1);
+                m_bleConnection->setScanStartInterval(t1);
               }
               break;
           case SE_CC_setBleScanBoot:
               t1 = popParameterStack();
               if( m_bleConnection ) {
-                //m_bleConnection->setScanStartBoot(t1);
+                m_bleConnection->setScanStartBoot(t1);
               }
               break;
           case SE_CC_setBleAddr:
               t1 = popParameterStack();
               t2 = popParameterStack();
               if( m_bleConnection) {
-                  //m_bleConnection->setBleAddress(t2, getAddressFromToken( t1));
+                  m_bleConnection->setBleAddress(t2, getAddressFromToken( t1));
               }
               break;
           case SE_CC_setBleParser:
               t1 = popParameterStack();
               t2 = popParameterStack();
-              // if( m_bleConnection) {
-              //     if(t1 == static_cast<uint32_t>(BleParserTypes::tempHumidity)) {
-              //       m_bleConnection->setBleParser(t2, BleParserTypes::tempHumidity);
-              //     } else if(t1 == static_cast<uint32_t>(BleParserTypes::victron)) {
-              //       m_bleConnection->setBleParser(t2, BleParserTypes::victron);
-              //     } else {
-              //       m_bleConnection->setBleParser(t2, BleParserTypes::none);
-              //     }
-              // }
+              if( m_bleConnection) {
+                  if(t1 == static_cast<uint32_t>(BleParserTypes::tempHumidity)) {
+                    m_bleConnection->setBleParser(t2, BleParserTypes::tempHumidity);
+                  } else if(t1 == static_cast<uint32_t>(BleParserTypes::victron)) {
+                    m_bleConnection->setBleParser(t2, BleParserTypes::victron);
+                  } else {
+                    m_bleConnection->setBleParser(t2, BleParserTypes::none);
+                  }
+              }
               break;
           case SE_CC_setBleEnable:
               t1 = popParameterStack();
               t2 = popParameterStack();
-              // if( m_bleConnection) {
-              //     m_bleConnection->setBleEnable(t2, t1);
-              // }
+              if( m_bleConnection) {
+                  m_bleConnection->setBleEnable(t2, t1);
+              }
               break;
           case SE_CC_logBleParsers:
-              // if(m_bleConnection) {
-              //   m_bleConnection->logParsers();
-              // }
+              if(m_bleConnection) {
+                m_bleConnection->logParsers();
+              }
               break;
           case SE_CC_setVicKey:
               t1 = popParameterStack();
