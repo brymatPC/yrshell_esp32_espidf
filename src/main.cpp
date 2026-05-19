@@ -31,7 +31,7 @@ AppManager appMgr(s_appName, s_appVersion);
 YRShellEsp32 shell;
 LedStripDriver ledStrip;
 BleConnection bleConnection;
-WifiConnection wifiConnection(&ledStrip);
+WifiConnection wifiConnection(&ledStrip, 7500);
 TelnetServer telnetServer;
 TelnetLogServer telnetLogServer;
 
