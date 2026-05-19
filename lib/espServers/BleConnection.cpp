@@ -344,9 +344,9 @@ void BleConnection::onResult(const NimBLEAdvertisedDevice* advertisedDevice) {
                 ESP_LOGI(TAG, "BleConnection: TxPower=%d", advertisedDevice->getTXPower());
             }
             if (advertisedDevice->haveManufacturerData()) {
-                int len = advertisedDevice->getManufacturerData().length();
-                const char* data = advertisedDevice->getManufacturerData().c_str();
                 #ifdef LOG_INPUT_DATA
+                    int len = advertisedDevice->getManufacturerData().length();
+                    const char* data = advertisedDevice->getManufacturerData().c_str();
                     char outStr[128];
                     outStr[0] = '0';
                     outStr[1] = 'x';

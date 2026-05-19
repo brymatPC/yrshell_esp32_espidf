@@ -36,11 +36,11 @@ public:
     }
 
     virtual void reset(void) {};
-    virtual const uint16_t size(void) {return 0;};
-    virtual const uint16_t used(void) {return 0;};
-    virtual const uint16_t free(void) {return 0;};
-    virtual const bool valueAvailable(uint16_t n = 1) {return false;};
-    virtual const bool spaceAvailable(uint16_t n = 1) {return false;};
+    virtual uint16_t size(void) const {return 0;};
+    virtual uint16_t used(void) const {return 0;};
+    virtual uint16_t free(void) const {return 0;};
+    virtual bool valueAvailable(uint16_t n = 1) const {return false;};
+    virtual bool spaceAvailable(uint16_t n = 1) const {return false;};
     virtual TYPE get(void) {return TYPE(0);};
     virtual bool put(TYPE v) {return false;};
     virtual TYPE* getBuffer(void) {return 0;};
@@ -276,14 +276,14 @@ public:
 
      Returns the number of items + 1 which can be stored in the queue.
      */
-    const uint16_t size() {
+    uint16_t size() const {
         return SIZE;
     }
     /** \brief Returns the number of items in the queue.
 
      Returns the number of items in the queue.
      */
-    const uint16_t used() {
+    uint16_t used() const {
         uint16_t rc;
         if (m_head >= m_tail) {
             rc = m_head - m_tail;
@@ -296,21 +296,21 @@ public:
 
      Returns the number of items which the queue can accept.
      */
-    const uint16_t free() {
+    uint16_t free() const {
         return SIZE - used() - 1;
     }
     /** \brief Check for values in the queue.
 
      Returns true if an item (or if a n is specified, n items) are available.
      */
-    const bool valueAvailable(uint16_t n = 1) {
+    bool valueAvailable(uint16_t n = 1) const {
         return used() >= n;
     }
     /** \brief Checks for space in the queue.
 
      Returns true if an item (or if a n is specified, n items) can be written to the queue.
      */
-    const bool spaceAvailable(uint16_t n = 1) {
+    bool spaceAvailable(uint16_t n = 1) const {
         return free() >= n;
     }
     /** \brief Get a value from the queue.
