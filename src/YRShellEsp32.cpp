@@ -248,7 +248,7 @@ void YRShellEsp32::slice() {
     m_auxBufIndex = 0;
   }
 
-  if( HW_getMillis() > 5000 && !m_initialFileLoaded && m_initialized && isIdle() ) {
+  if( !m_initialFileLoaded && m_initialized && isIdle() ) {
       m_initialFileLoaded = true;
       loadFile( INITIAL_LOAD_FILE);
   }
