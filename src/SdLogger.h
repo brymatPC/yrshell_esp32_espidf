@@ -20,9 +20,9 @@ public:
 private:
     uint8_t m_cs;
     IntervalTimer m_timer;
+    bool m_connected;
+    sdmmc_card_t *m_card;
     long findLargestNumberInFilenames(const char* dir, const char* prefix);
-    void testFileIO(const char * path);
-    void testSdCard();
     void logSdCardStatus(sdmmc_card_t *card);
 };
 
