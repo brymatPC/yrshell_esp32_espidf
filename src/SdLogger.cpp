@@ -150,14 +150,20 @@ void SdLogger::log(const char *filePrefix, const char *record, bool createNew) {
 
     if(!m_connected) return;
 
-    long fileNumber = findLargestNumberInFilenames("/", filePrefix);
+    char baseDir[128];
+    snprintf(baseDir, 128, "%s/", MOUNT_POINT);
+
+    long fileNumber = findLargestNumberInFilenames(baseDir, filePrefix);
     if(fileNumber < 0) {
         // Failed to access SD card, unmount it and try again later
-        esp_vfs_fat_sdcard_unmount(MOUNT_POINT, m_card);
+        esp_err_t err = esp_vfs_fat_sdcard_unmount(MOUNT_POINT, m_card);
+        if(err != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to unmount sdcard, err: %lu", err);
+        }
         m_connected = false;
     } else if(fileNumber == 0) {
         fileNumber = 1;
-        snprintf(filename, 128, "/%s_%ld.json", filePrefix, fileNumber);
+        snprintf(filename, 128, "%s/%s_%ld.json", MOUNT_POINT, filePrefix, fileNumber);
         file = fopen(filename, "w");
         if(file) {
             ESP_LOGI(TAG, "File not found, created a new file; %s", filename);
@@ -165,14 +171,14 @@ void SdLogger::log(const char *filePrefix, const char *record, bool createNew) {
             ESP_LOGW(TAG, "Failed to create a new file; %s", filename);
         }
     } else {
-        snprintf(filename, 128, "/%s_%ld.json", filePrefix, fileNumber);
+        snprintf(filename, 128, "%s/%s_%ld.json", MOUNT_POINT, filePrefix, fileNumber);
         file = fopen(filename, "a");
         stat(filename, &st);
         if(file) {
             if(createNew || st.st_size > SD_FILE_MAX_SIZE) {
                 fclose(file);
                 fileNumber += 1;
-                snprintf(filename, 128, "/%s_%ld.json", filePrefix, fileNumber);
+                snprintf(filename, 128, "%s/%s_%ld.json", MOUNT_POINT, filePrefix, fileNumber);
                 file = fopen(filename, "w");
                 if(file) {
                     ESP_LOGI(TAG, "Created a new file; %s", filename);
