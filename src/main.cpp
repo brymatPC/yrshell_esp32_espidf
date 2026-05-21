@@ -16,6 +16,7 @@
 #include "WifiConnection.h"
 #include "TelnetServer.h"
 #include "YRShellEsp32.h"
+#include "SdLogger.h"
 
 #include "esp_littlefs.h"
 
@@ -27,11 +28,17 @@ static char s_appVersion[] = "0.9.0";
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
 
+static const int8_t SD_SCK = 10;
+static const int8_t SD_MISO = 7;
+static const int8_t SD_MOSI = 8;
+static const int8_t SD_CS = 11;
+
 CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_logQ;
 AppManager appMgr(s_appName, s_appVersion);
 YRShellEsp32 shell;
 LedStripDriver ledStrip;
 BleConnection bleConnection;
+SdLogger sdLogger;
 WifiConnection wifiConnection(&ledStrip, 7500);
 TelnetServer telnetServer;
 TelnetLogServer telnetLogServer;
@@ -110,6 +117,8 @@ static void loop(void *pvParameters) {
     shell.setBleConnection(&bleConnection);
     shell.setLedStrip(&ledStrip);
     shell.init();
+
+    sdLogger.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
 
     while(1) {
         Sliceable::sliceAll( );
