@@ -9,8 +9,7 @@
 #include "WifiConnection.h"
 // TODO: Re-add
 //#include "VictronDevice.h"
-// TODO: Re-add
-//#include "UploadDataClient.h"
+#include "UploadDataClient.h"
 #include "Utilities.h"
 
 #include <esp_littlefs.h>
@@ -592,9 +591,9 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               // if(m_sen66Device) {
               //   m_sen66Device->save();
               // }
-              // if(m_uploadClient) {
-              //   m_uploadClient->save();
-              // }
+              if(m_uploadClient) {
+                m_uploadClient->save();
+              }
               break;
           case SE_CC_bleScan:
               if( m_bleConnection ) {
@@ -695,15 +694,15 @@ void YRShellEsp32::executeFunction( uint16_t n) {
             break;
           case SE_CC_setUploadIp:
               t1 = popParameterStack();
-              // if( m_uploadClient) {
-              //     m_uploadClient->setHostIp( getAddressFromToken( t1));
-              // }
+              if( m_uploadClient) {
+                  m_uploadClient->setHostIp( getAddressFromToken( t1));
+              }
               break;
           case SE_CC_setUploadPort:
               t1 = popParameterStack();
-              // if( m_uploadClient) {
-              //     m_uploadClient->setHostPort(t1);
-              // }
+              if( m_uploadClient) {
+                  m_uploadClient->setHostPort(t1);
+              }
               break;
           case SE_CC_flashSize:
           {
@@ -759,9 +758,9 @@ void YRShellEsp32::executeFunction( uint16_t n) {
             }
             break;
           case SE_CC_upload:
-            // if(m_uploadClient) {
-            //   m_uploadClient->sendFile(s_testRoute, s_uploadData, strlen(s_uploadData));
-            // }
+            if(m_uploadClient) {
+              m_uploadClient->sendFile(s_testRoute, s_uploadData, strlen(s_uploadData));
+            }
             break;
           case SE_CC_setLedStrip:
               t1 = popParameterStack();

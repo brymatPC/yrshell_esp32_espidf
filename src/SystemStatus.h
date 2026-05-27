@@ -7,7 +7,7 @@
 
 #define MAX_SYS_STAT_SEND_BUF_SIZE 128
 
-//class UploadDataClient;
+class UploadDataClient;
 class SdLogger;
 
 class SystemStatus : public Sliceable {
@@ -16,7 +16,7 @@ private:
     static char s_ROUTE[];
 
     IntervalTimer m_timer;
-    //UploadDataClient* m_uploadClient;
+    UploadDataClient* m_uploadClient;
     SdLogger* m_sdLogger;
     uint8_t m_state;
 
@@ -32,7 +32,7 @@ public:
     virtual ~SystemStatus() {}
     virtual const char* sliceName( ) { return "SystemStatus"; }
 
-    //void setUploadClient(UploadDataClient *client) { m_uploadClient = client; }
+    void setUploadClient(UploadDataClient *client) { m_uploadClient = client; }
     void setSdLogger(SdLogger *sdLogger) {m_sdLogger = sdLogger; }
     virtual void slice( void);
 

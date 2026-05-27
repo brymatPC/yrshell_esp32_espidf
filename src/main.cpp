@@ -18,6 +18,7 @@
 #include "YRShellEsp32.h"
 #include "SdLogger.h"
 #include "SystemStatus.h"
+#include "UploadDataClient.h"
 
 #include "esp_littlefs.h"
 
@@ -43,6 +44,7 @@ SdLogger sdLogger;
 WifiConnection wifiConnection(&ledStrip, 7500);
 TelnetServer telnetServer;
 TelnetLogServer telnetLogServer;
+UploadDataClient uploadClient;
 
 SystemStatus systemStatus;
 
@@ -97,6 +99,7 @@ bool mountLittleFs() {
 static void loop(void *pvParameters) {
     unsigned telnetPort = 23;
     unsigned telnetLogPort = 2023;
+    bool wifiConnected = false;
 
     appMgr.init();
     ledStrip.setup();
@@ -114,19 +117,33 @@ static void loop(void *pvParameters) {
         telnetServer.init( telnetPort, &shell.getInq(), &shell.getOutq());
     }
 
+    uploadClient.init();
+    uploadClient.setup();
+
     shell.setLedDriver(&ledStrip);
     shell.setAppMgr(&appMgr);
     shell.setWifiConnection(&wifiConnection);
     shell.setBleConnection(&bleConnection);
     shell.setLedStrip(&ledStrip);
+    shell.setTelnetLogServer(&telnetLogServer);
+    shell.setUploadClient(&uploadClient);
     shell.init();
 
     sdLogger.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
     
+    systemStatus.setUploadClient(&uploadClient);
     systemStatus.setSdLogger(&sdLogger);
+
+    uploadClient.updateWifiStatus(wifiConnected, wifiConnection.getHostIp());
 
     while(1) {
         Sliceable::sliceAll( );
+
+        if(!wifiConnected && wifiConnection.isNetworkConnected()) {
+            wifiConnected = true;
+        } else if(wifiConnected && !wifiConnection.isNetworkConnected()) {
+            wifiConnected = false;
+        }
 
         bool telnetSpaceAvailable = telnetLogServer.spaceAvailable( 32);
         bool serialSpaceAvailable = true;

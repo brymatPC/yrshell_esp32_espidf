@@ -1,5 +1,5 @@
 #include "SystemStatus.h"
-//#include "UploadDataClient.h"
+#include "UploadDataClient.h"
 #include "SdLogger.h"
 #include "Utilities.h"
 #include "esp_log_custom.h"
@@ -45,10 +45,9 @@ void SystemStatus::toJson(char *buf, uint32_t maxLen, bool addLineEnding) {
         ts, mac, HW_getMillis(), minHeap, idlePercent, ending);
 }
 void SystemStatus::uploadReadings() {
-    // if(!m_uploadClient) return;
-    // toJson(m_sendBuf, MAX_SYS_STAT_SEND_BUF_SIZE, false);
-    // m_uploadClient->sendFile(s_ROUTE, m_sendBuf, strlen(m_sendBuf));
-
+    if(!m_uploadClient) return;
+    toJson(m_sendBuf, MAX_SYS_STAT_SEND_BUF_SIZE, false);
+    m_uploadClient->sendFile(s_ROUTE, m_sendBuf, strlen(m_sendBuf));
 }
 void SystemStatus::writeReadings() {
     static bool firstRun = true;
@@ -66,23 +65,22 @@ void SystemStatus::slice( void) {
         case STATE_IDLE:
             if((m_timer.hasIntervalElapsed())) {
                 m_timer.setInterval(s_UPLOAD_TIME_MS);
-                // ESP_LOGD(TAG, "uploading data");
-                // m_state = STATE_UPLOAD;
-                m_state = STATE_WRITE_LOG;
+                ESP_LOGD(TAG, "uploading data");
+                m_state = STATE_UPLOAD;
             }
         break;
         case STATE_UPLOAD:
-            //if(!m_uploadClient) {
+            if(!m_uploadClient) {
                 m_state = STATE_WRITE_LOG;
-            // } else if(!m_uploadClient->busy()) {
-            //     uploadReadings();
-            //     m_state = STATE_SEND_WAIT;
-            // }
+            } else if(!m_uploadClient->busy()) {
+                uploadReadings();
+                m_state = STATE_SEND_WAIT;
+            }
         break;
         case STATE_SEND_WAIT:
-            //if(!m_uploadClient->busy()) {
+            if(!m_uploadClient->busy()) {
                 m_state = STATE_WRITE_LOG;
-            //}
+            }
         break;
         case STATE_WRITE_LOG:
             if(m_sdLogger) {
