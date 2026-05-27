@@ -21,6 +21,7 @@
 #include "UploadDataClient.h"
 
 #include "esp_littlefs.h"
+#include "esp_netif_sntp.h"
 
 #define YRSHELL_ON_TELNET
 #define LOCAL_LOG_BUFFER_SIZE 8192
@@ -47,6 +48,22 @@ TelnetLogServer telnetLogServer;
 UploadDataClient uploadClient;
 
 SystemStatus systemStatus;
+
+void timeSyncNotification(struct timeval *tv) {
+    ESP_LOGI(TAG, "Time synchronization event");
+}
+
+void startSntp(void) {
+    esp_err_t err;
+    esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
+    config.sync_cb = timeSyncNotification;
+    err = esp_netif_sntp_init(&config);
+    if(err != ESP_OK) {
+      ESP_LOGW(TAG, "SNTP error: %u", err);
+    } else {
+      ESP_LOGI(TAG, "NTP request started");
+    }
+}
 
 bool logOut(char c) {
   static char logOverflow[] = "\r\n\nLOG DATA DROPPED\r\n\n";
@@ -133,6 +150,8 @@ static void loop(void *pvParameters) {
     
     systemStatus.setUploadClient(&uploadClient);
     systemStatus.setSdLogger(&sdLogger);
+
+    startSntp();
 
     uploadClient.updateWifiStatus(wifiConnected, wifiConnection.getHostIp());
 
