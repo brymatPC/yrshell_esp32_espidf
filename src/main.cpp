@@ -17,6 +17,7 @@
 #include "TelnetServer.h"
 #include "YRShellEsp32.h"
 #include "SdLogger.h"
+#include "SystemStatus.h"
 
 #include "esp_littlefs.h"
 
@@ -42,6 +43,8 @@ SdLogger sdLogger;
 WifiConnection wifiConnection(&ledStrip, 7500);
 TelnetServer telnetServer;
 TelnetLogServer telnetLogServer;
+
+SystemStatus systemStatus;
 
 bool logOut(char c) {
   static char logOverflow[] = "\r\n\nLOG DATA DROPPED\r\n\n";
@@ -119,6 +122,8 @@ static void loop(void *pvParameters) {
     shell.init();
 
     sdLogger.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+    
+    systemStatus.setSdLogger(&sdLogger);
 
     while(1) {
         Sliceable::sliceAll( );
