@@ -19,6 +19,7 @@
 #include "SdLogger.h"
 #include "SystemStatus.h"
 #include "UploadDataClient.h"
+#include "VictronDevice.h"
 
 #include "esp_littlefs.h"
 #include "esp_netif_sntp.h"
@@ -48,6 +49,7 @@ TelnetLogServer telnetLogServer;
 UploadDataClient uploadClient;
 
 SystemStatus systemStatus;
+VictronDevice victronParser;
 
 void timeSyncNotification(struct timeval *tv) {
     ESP_LOGI(TAG, "Time synchronization event");
@@ -121,6 +123,7 @@ static void loop(void *pvParameters) {
     appMgr.init();
     ledStrip.setup();
     bleConnection.setup();
+    bleConnection.addParser(BleParserTypes::victron, &victronParser);
 
     wifiConnection.setup();
     wifiConnection.enable();
@@ -141,6 +144,7 @@ static void loop(void *pvParameters) {
     shell.setAppMgr(&appMgr);
     shell.setWifiConnection(&wifiConnection);
     shell.setBleConnection(&bleConnection);
+    shell.setVictronDevice(&victronParser);
     shell.setLedStrip(&ledStrip);
     shell.setTelnetLogServer(&telnetLogServer);
     shell.setUploadClient(&uploadClient);
@@ -150,6 +154,9 @@ static void loop(void *pvParameters) {
     
     systemStatus.setUploadClient(&uploadClient);
     systemStatus.setSdLogger(&sdLogger);
+    victronParser.setup();
+    victronParser.setUploadClient(&uploadClient);
+    victronParser.setSdLogger(&sdLogger);
 
     startSntp();
 

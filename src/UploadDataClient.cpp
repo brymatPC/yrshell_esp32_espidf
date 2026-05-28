@@ -100,7 +100,7 @@ void UploadDataClient::updateWifiStatus(bool connected, const char *hostIp) {
     strncpy(m_hostIp, hostIp, UDC_IP_LEN);
 }
 void UploadDataClient::changeState( uint8_t newState) {
-    ESP_LOGI(TAG, "change state from %u to %u", m_state, newState);
+    ESP_LOGD(TAG, "change state from %u to %u", m_state, newState);
     m_state = newState;
 }
 void UploadDataClient::sendHeader() {
@@ -184,7 +184,7 @@ void UploadDataClient::slice() {
         case STATE_DISCONNECTING:
             shutdown(m_client, 0);
             close(m_client);
-            ESP_LOGD(TAG, "Done");
+            ESP_LOGI(TAG, "Client disconnected");
             changeState( STATE_IDLE);
         break;
     }

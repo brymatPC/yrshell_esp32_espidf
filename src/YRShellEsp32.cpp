@@ -7,8 +7,7 @@
 // TODO: Re-add
 //#include "TempHumidityParser.h"
 #include "WifiConnection.h"
-// TODO: Re-add
-//#include "VictronDevice.h"
+#include "VictronDevice.h"
 #include "UploadDataClient.h"
 #include "Utilities.h"
 
@@ -585,9 +584,9 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               if( m_bleConnection ) {
                 m_bleConnection->save();
               }
-              // if(m_victronDevice) {
-              //   m_victronDevice->save();
-              // }
+              if(m_victronDevice) {
+                m_victronDevice->save();
+              }
               // if(m_sen66Device) {
               //   m_sen66Device->save();
               // }
@@ -676,9 +675,9 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               break;
           case SE_CC_setVicKey:
               t1 = popParameterStack();
-              // if( m_victronDevice) {
-              //     m_victronDevice->setKey( getAddressFromToken( t1));
-              // }
+              if( m_victronDevice) {
+                  m_victronDevice->setKey( getAddressFromToken( t1));
+              }
             break;
           case SE_CC_setTempHumidityLogging:
               t1 = popParameterStack();
