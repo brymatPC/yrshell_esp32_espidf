@@ -1,5 +1,6 @@
 #include "AppManager.h"
 #include <HardwareSpecific.h>
+#include "Utilities.h"
 
 #include "esp_log_custom.h"
 #include "esp_sleep.h"
@@ -78,6 +79,7 @@ void AppManager::slice( void) {
         ESP_LOGI(TAG, "AppName: %s; AppVersion: %s", m_appName, m_appVersion);
         ESP_LOGI(TAG, "bootCount: %d", m_bootCount);
         ESP_LOGI(TAG, "Reset Reason: %d, %s", resetReasonStartup, resetStr);
+        printFrequencies();
     }
 
     switch(m_state) {

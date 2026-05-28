@@ -7,7 +7,10 @@
 #include <esp_heap_caps.h>
 #include <esp_idf_version.h>
 #include <esp_mac.h>
+#include <esp_clk_tree.h>
 #include <time.h>
+
+#include <FreeRTOSConfig.h>
 
 void getRtcTimeStr(char *ts, size_t maxLen) {
     struct tm timeinfo;
@@ -141,4 +144,12 @@ void getEspMac(char *mac) {
     uint8_t macRaw[8];
     esp_efuse_mac_get_default(macRaw);
     sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X", macRaw[0], macRaw[1], macRaw[2], macRaw[3], macRaw[4], macRaw[5]);
+}
+void printFrequencies(void) {
+    uint32_t cpuFreq = 0;
+    uint32_t apbFreq = 0;
+    esp_clk_tree_src_get_freq_hz(SOC_MOD_CLK_CPU, ESP_CLK_TREE_SRC_FREQ_PRECISION_APPROX, &cpuFreq);
+    esp_clk_tree_src_get_freq_hz(SOC_MOD_CLK_APB, ESP_CLK_TREE_SRC_FREQ_PRECISION_APPROX, &apbFreq);
+
+    ESP_LOGI(TAG, "System Clock: %lu MHz, APB Clock: %lu MHz, Tick Rate: %lu Hz", cpuFreq/1000000, apbFreq/1000000, configTICK_RATE_HZ);
 }

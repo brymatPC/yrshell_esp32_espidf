@@ -19,7 +19,7 @@ typedef enum {
 } sysStatusStates_t;
 
 static const char* TAG = "SysStat";
-const unsigned int SystemStatus::s_UPLOAD_TIME_MS = 60000;
+const unsigned int SystemStatus::s_UPLOAD_TIME_MS = 300000;
 char SystemStatus::s_ROUTE[] = "/system";
 
 SystemStatus::SystemStatus() :
