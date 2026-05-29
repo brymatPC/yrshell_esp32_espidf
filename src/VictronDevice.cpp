@@ -4,6 +4,7 @@
 #include "Utilities.h"
 
 #include <aes/esp_aes.h>
+#include <psa/crypto.h>
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "esp_log_custom.h"
@@ -117,13 +118,12 @@ void VictronDevice::parse() {
     }
 
     if(m_bleData.payloadLen > 7) {
-        uint16_t companyId = (m_bleData.payload[0] << 8) | (m_bleData.payload[1]);
+        uint16_t companyId = (m_bleData.payload[1] << 8) | (m_bleData.payload[0]);
         uint8_t dataRecordType = m_bleData.payload[2];
-        uint16_t modelId = (m_bleData.payload[3] << 8) | (m_bleData.payload[4]);
+        uint16_t modelId = (m_bleData.payload[4] << 8) | (m_bleData.payload[3]);
         uint8_t readOutType = m_bleData.payload[5];
         uint8_t recordType = m_bleData.payload[6];
-
-        ESP_LOGI(TAG, "companyId=0x%04X modelId=0x%04X", companyId, modelId);
+        ESP_LOGI(TAG, "companyId=0x%04X, modelId=0x%04X, dataRecordType=0x%02X, readOutType=0x%02X, recordType=0x%02X", companyId, modelId, dataRecordType, readOutType, recordType);
     }
 
     if(m_bleData.payloadLen >= 25) {
@@ -145,84 +145,125 @@ void VictronDevice::parse() {
         ESP_LOGW(TAG, "insufficient bytes to parse: payloadLen=%u", m_bleData.payloadLen);
     }
 }
+
 void VictronDevice::decrypt() {
-    size_t nonce_offset = 0;
-    uint8_t nonce_counter[32] = {0};
+    uint8_t nonce_counter[16] = {0};
     uint8_t key_match = 0;
-    uint8_t stream_block[32] = {0};
     uint8_t outputData[32] = {0};
     uint8_t inputData[32] = {0};
+    size_t output_length = 0;
+    uint32_t totalDecryptedBytes = 0;
+
+    psa_status_t status;
+    psa_key_id_t key_id;
+    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_cipher_operation_t operation = PSA_CIPHER_OPERATION_INIT;
 
     size_t dataLen = m_bleData.payloadLen - 10;
-    esp_aes_context ctx;
-    esp_aes_init(&ctx);
-    int status = esp_aes_setkey(&ctx, m_key, 128);
-    if(status != 0) {
-        ESP_LOGW(TAG, "failed to start aes: status=%d", status);
-        return;
-    }
+
     // construct the 16-byte nonce counter array by piecing it together byte-by-byte.
     nonce_counter[0] = m_bleData.payload[7];
     nonce_counter[1] = m_bleData.payload[8];
     key_match = m_bleData.payload[9];
-
-    ESP_LOGI(TAG, "KeyMatch: 0x%02X, Key: 0x%02X, Nonce: 0x%02X%02X, len: %u", key_match, m_key[0], nonce_counter[0], nonce_counter[1], dataLen);
-
     memcpy(inputData, &m_bleData.payload[10], dataLen);
-    
-    status = esp_aes_crypt_ctr(&ctx, dataLen, &nonce_offset, nonce_counter, stream_block, inputData, outputData);
-    esp_aes_free(&ctx);
 
-    if (status != 0) {
-        ESP_LOGW(TAG, "failed to decrypt: status=%d", status);
-    } else {
-        // Bits 15:0 - TTG (minutes)
-        // Bits 31:16 - Battery voltage (0.01 V)
-        // Bits 47:32 - Alarm Reason
-        // Bits 63:48 - Aux voltage (0.01 V)
-        // Bits 65:64 - Aux Input type
-        // Bits 87:66 - Battery Current (0.001A)
-        // Bits 107:88 - Consumed Ah (0.1 Ah)
-        // Bits 117:108 - State of Charge (0.1%)
-        uint16_t timeToGo = (outputData[1] << 8) | (outputData[0]);
-        uint16_t batteryVoltage = (outputData[3] << 8) | (outputData[2]);
-        // No alarms
-        uint16_t auxVoltage = (outputData[7] << 8) | (outputData[6]);
-        uint8_t auxType = (outputData[8] & 0x03);
-        uint32_t batteryCurrent_u = (outputData[10] << 14) | (outputData[9] << 6) | ((outputData[8] & 0xFC) >> 2);
-        uint32_t consumed = ((outputData[13] & 0x0F) << 16) | (outputData[12] << 8) | (outputData[11]);
-        uint32_t stateOfCharge = ((outputData[14] & 0x3F) << 4) | ((outputData[13] & 0xF0) >> 4);
-        int32_t batteryCurrent = 0;
+    ESP_LOGI(TAG, "KeyMatch: 0x%02X, Key: 0x%02X, Nonce: 0x%02X%02X, len: %u", key_match, m_key[0], m_bleData.payload[7], m_bleData.payload[8], dataLen);
 
-        if(batteryCurrent_u <= 0x001FFFFF) {
-            batteryCurrent = (int32_t) batteryCurrent_u;
-        } else {
-            batteryCurrent = (int32_t) (0x3FFFFF - batteryCurrent_u + 1);
-            batteryCurrent *= -1;
-        }
-
-        ESP_LOGI(TAG, "addr=%s", m_bleData.addr);
-        ESP_LOGI(TAG, "batteryVoltage=%u batteryCurrent=%d", batteryVoltage, batteryCurrent);
-
-        strncpy(m_data.serial, m_bleData.name, 32);
-        m_data.timeToGo = timeToGo;
-        m_data.batteryVoltage = batteryVoltage;
-        m_data.batteryCurrent = batteryCurrent;
-        m_data.stateOfCharge = stateOfCharge;
-        m_dataUploadReady = true;
-        m_dataLogReady = true;
-        m_lastUpdate = HW_getMillis();
-
-        #ifdef LOG_OUTPUT_DATA
-            char outStr[128];
-            outStr[0] = '0';
-            outStr[1] = 'x';
-            for(int i=0; i < 15; i++) {
-                sprintf(&outStr[2+i*2], "%02X", outputData[i]);
-            }
-            ESP_LOGI(TAG, "outputData=%s", outStr);
-        #endif
+    status = psa_crypto_init();
+    if (status != PSA_SUCCESS) {
+        ESP_LOGW(TAG, "Failed to initialize PSA Crypto: %d", status);
+        return;
     }
+
+    psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_DECRYPT);
+    psa_set_key_algorithm(&attributes, PSA_ALG_CTR);
+    psa_set_key_type(&attributes, PSA_KEY_TYPE_AES);
+    psa_set_key_bits(&attributes, 128);
+
+    status = psa_import_key(&attributes, m_key, VICTRON_KEY_LEN, &key_id);
+    if (status != PSA_SUCCESS) {
+        ESP_LOGE(TAG, "Failed to import key: %d", status);
+        return;
+    }
+    status = psa_cipher_decrypt_setup(&operation, key_id, PSA_ALG_CTR);
+    if (status != PSA_SUCCESS) {
+        ESP_LOGW(TAG, "failed to setup decrypt: status=%d", status);
+        psa_cipher_abort(&operation);
+        return;
+    }
+    status = psa_cipher_set_iv(&operation, nonce_counter, 16);
+    if (status != PSA_SUCCESS) {
+        ESP_LOGW(TAG, "failed to set cipher iv: status=%d", status);
+        psa_cipher_abort(&operation);
+        return;
+    }
+    status = psa_cipher_update(&operation, inputData, dataLen, outputData, sizeof(outputData), &output_length);
+    if (status != PSA_SUCCESS) {
+        ESP_LOGW(TAG, "failed to update cypher: status=%d", status);
+        psa_cipher_abort(&operation);
+        return;
+    }
+
+    totalDecryptedBytes += output_length;
+
+    status = psa_cipher_finish(&operation, outputData + output_length, sizeof(outputData) - output_length, &output_length);
+    if (status != PSA_SUCCESS) {
+        ESP_LOGW(TAG, "failed to finish cypher: status=%d", status);
+        psa_cipher_abort(&operation);
+        return;
+    }
+
+    totalDecryptedBytes += output_length;
+    
+    psa_destroy_key(key_id);
+    ESP_LOGI(TAG, "Completed decryption of %lu bytes", totalDecryptedBytes);
+
+    // Bits 15:0 - TTG (minutes)
+    // Bits 31:16 - Battery voltage (0.01 V)
+    // Bits 47:32 - Alarm Reason
+    // Bits 63:48 - Aux voltage (0.01 V)
+    // Bits 65:64 - Aux Input type
+    // Bits 87:66 - Battery Current (0.001A)
+    // Bits 107:88 - Consumed Ah (0.1 Ah)
+    // Bits 117:108 - State of Charge (0.1%)
+    uint16_t timeToGo = (outputData[1] << 8) | (outputData[0]);
+    uint16_t batteryVoltage = (outputData[3] << 8) | (outputData[2]);
+    // No alarms
+    uint16_t auxVoltage = (outputData[7] << 8) | (outputData[6]);
+    uint8_t auxType = (outputData[8] & 0x03);
+    uint32_t batteryCurrent_u = (outputData[10] << 14) | (outputData[9] << 6) | ((outputData[8] & 0xFC) >> 2);
+    uint32_t consumed = ((outputData[13] & 0x0F) << 16) | (outputData[12] << 8) | (outputData[11]);
+    uint32_t stateOfCharge = ((outputData[14] & 0x3F) << 4) | ((outputData[13] & 0xF0) >> 4);
+    int32_t batteryCurrent = 0;
+
+    if(batteryCurrent_u <= 0x001FFFFF) {
+        batteryCurrent = (int32_t) batteryCurrent_u;
+    } else {
+        batteryCurrent = (int32_t) (0x3FFFFF - batteryCurrent_u + 1);
+        batteryCurrent *= -1;
+    }
+
+    ESP_LOGI(TAG, "addr=%s", m_bleData.addr);
+    ESP_LOGI(TAG, "batteryVoltage=%u batteryCurrent=%d consumed=%lu", batteryVoltage, batteryCurrent, consumed);
+
+    strncpy(m_data.serial, m_bleData.name, 32);
+    m_data.timeToGo = timeToGo;
+    m_data.batteryVoltage = batteryVoltage;
+    m_data.batteryCurrent = batteryCurrent;
+    m_data.stateOfCharge = stateOfCharge;
+    m_dataUploadReady = true;
+    m_dataLogReady = true;
+    m_lastUpdate = HW_getMillis();
+
+    #ifdef LOG_OUTPUT_DATA
+        char outStr[128];
+        outStr[0] = '0';
+        outStr[1] = 'x';
+        for(int i=0; i < 15; i++) {
+            sprintf(&outStr[2+i*2], "%02X", outputData[i]);
+        }
+        ESP_LOGI(TAG, "outputData=%s", outStr);
+    #endif
 }
 void VictronDevice::scanComplete() {
     m_uploadRequest = true;
