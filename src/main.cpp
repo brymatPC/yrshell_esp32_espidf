@@ -82,11 +82,11 @@ bool logOut(char c) {
     }
     return ret;
 }
+static char m_logBuf[512];
 int custom_log_handler(const char* format, va_list args) {
     // Format the message into a buffer
-    char buf[128];
-    int ret = vsnprintf(buf, sizeof(buf), format, args);
-    char *s = buf;
+    int ret = vsnprintf(m_logBuf, sizeof(m_logBuf), format, args);
+    char *s = m_logBuf;
     while( *s != '\0') {
       if(!logOut( *s++)) {
         break;
