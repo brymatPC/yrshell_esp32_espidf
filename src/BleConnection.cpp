@@ -303,6 +303,8 @@ void BleConnection::slice( void) {
 
 void BleConnection::onResult(const NimBLEAdvertisedDevice* advertisedDevice) {
     NimBLEAddress address = advertisedDevice->getAddress();
+    bool hasMfgData = advertisedDevice->haveManufacturerData();
+    std::string mfgDataStr = hasMfgData ? advertisedDevice->getManufacturerData() : "";
 
     for(uint8_t i=0; i < MAX_BLE_DEVICES; i++) {
         if(!m_deviceParsers[i].enabled) continue;
@@ -318,9 +320,9 @@ void BleConnection::onResult(const NimBLEAdvertisedDevice* advertisedDevice) {
             } else {
                 m_devices[0].name[0] = '\0';
             }
-            if (advertisedDevice->haveManufacturerData()) {
-                int len = advertisedDevice->getManufacturerData().length();
-                const uint8_t* data = advertisedDevice->getManufacturerData8();
+            if (hasMfgData) {
+                int len = mfgDataStr.length();
+                const char* data = mfgDataStr.c_str();
                 memcpy(m_devices[0].payload, data, len);
                 m_devices[0].payloadLen = (uint8_t) len;
                 m_devices[0].valid = true;
@@ -348,38 +350,19 @@ void BleConnection::onResult(const NimBLEAdvertisedDevice* advertisedDevice) {
             if (advertisedDevice->haveTXPower()) {
                 ESP_LOGI(TAG, "BleConnection: TxPower=%d", advertisedDevice->getTXPower());
             }
-            if (advertisedDevice->haveManufacturerData()) {
+            if (hasMfgData) {
                 #ifdef LOG_INPUT_DATA
-                    int len = advertisedDevice->getManufacturerData().length();
-                    if(len > 16) {
-                        len = 16;
-                    }
-
-                    const uint8_t* data = advertisedDevice->getManufacturerData8();
-                    char outStr[256];
+                    int len = mfgDataStr.length();
+                    const char* data = mfgDataStr.c_str();
+                    char outStr[128];
                     outStr[0] = '0';
                     outStr[1] = 'x';
                     for(int i=0; i < len; i++) {
                         sprintf(&outStr[2+i*2], "%02X", data[i]);
                     }
-                    //outStr[2+len*2 - 1] = '\0';
-                    ESP_LOGI(TAG, "BleConnection: dataCount %u, mfdata[%d]=%s", advertisedDevice->getManufacturerDataCount(), advertisedDevice->getManufacturerData().length(), outStr);
+                    ESP_LOGI(TAG, "BleConnection: mfdata[%d]=%s", mfgDataStr.length(), outStr);
                 #endif
             }
-            // const std::vector<uint8_t>& payload = advertisedDevice->getPayload();
-            // int len = payload.size();
-            // if(len > 16) {
-            //     len = 16;
-            // }
-            // char outStr[256];
-            // outStr[0] = '0';
-            // outStr[1] = 'x';
-            // for(int i=0; i < len; i++) {
-            //     sprintf(&outStr[2+i*2], "%02X", payload[i]);
-            // }
-            // //outStr[2+len*2 - 1] = '\0';
-            // ESP_LOGI(TAG, "BleConnection: payload[%lu]=%s", payload.size(), outStr);
-            // ESP_LOGI(TAG, "Blank");
         }
     }
 }
