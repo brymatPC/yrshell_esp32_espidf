@@ -82,8 +82,10 @@ bool logOut(char c) {
     }
     return ret;
 }
-static char m_logBuf[512];
+// TODO: This could be improved, probably shouldn't have a large local buffer on the stack and
+//   writing each byte individually could be faster.
 int custom_log_handler(const char* format, va_list args) {
+    char m_logBuf[256];
     // Format the message into a buffer
     int ret = vsnprintf(m_logBuf, sizeof(m_logBuf), format, args);
     char *s = m_logBuf;
