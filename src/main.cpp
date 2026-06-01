@@ -189,8 +189,6 @@ static void loop(void *pvParameters) {
             #endif
             }
         }
-
-        vTaskDelay(1);
     }
 }
 
@@ -214,7 +212,7 @@ extern "C" void app_main() {
 
     mountLittleFs();
 
-    uint32_t ret = xTaskCreate(&loop, "loop", 4096, NULL, 5, &xHandle);
+    uint32_t ret = xTaskCreatePinnedToCore(&loop, "loop", 4096, NULL, 5, &xHandle, 1);
 
     ESP_LOGI(TAG, "Task create returned %lu", ret);
 
