@@ -732,8 +732,7 @@ void YRShellEsp32::executeFunction( uint16_t n) {
             break;
           case SE_CC_cpuPerf:
             t1 = popParameterStack();
-            // TODO: Re-Add
-            //startCpuPerf(t1);
+            startCpuPerf(t1);
             break;
           case SE_CC_heapPerf:
             printHeapStats();

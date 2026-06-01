@@ -20,6 +20,7 @@
 #include "SystemStatus.h"
 #include "UploadDataClient.h"
 #include "VictronDevice.h"
+#include "Utilities.h"
 
 #include "esp_littlefs.h"
 #include "esp_netif_sntp.h"
@@ -213,8 +214,10 @@ extern "C" void app_main() {
     mountLittleFs();
 
     uint32_t ret = xTaskCreatePinnedToCore(&loop, "loop", 4096, NULL, 5, &xHandle, 1);
-
     ESP_LOGI(TAG, "Task create returned %lu", ret);
+
+    //Create and start stats task
+    xTaskCreatePinnedToCore(runCpuPerfTask, "cpuPerf", 4096, NULL, 3, NULL, 0);
 
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
