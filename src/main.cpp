@@ -21,6 +21,7 @@
 #include "UploadDataClient.h"
 #include "VictronDevice.h"
 #include "Utilities.h"
+#include "TempHumidityParser.h"
 
 #include "esp_littlefs.h"
 #include "esp_netif_sntp.h"
@@ -51,6 +52,7 @@ UploadDataClient uploadClient;
 
 SystemStatus systemStatus;
 VictronDevice victronParser;
+TempHumidityParser tempHumParser;
 
 void timeSyncNotification(struct timeval *tv) {
     ESP_LOGI(TAG, "Time synchronization event");
@@ -127,6 +129,7 @@ static void loop(void *pvParameters) {
     ledStrip.setup();
     bleConnection.setup();
     bleConnection.addParser(BleParserTypes::victron, &victronParser);
+    bleConnection.addParser(BleParserTypes::tempHumidity, &tempHumParser);
 
     wifiConnection.setup();
     wifiConnection.enable();
@@ -148,6 +151,7 @@ static void loop(void *pvParameters) {
     shell.setWifiConnection(&wifiConnection);
     shell.setBleConnection(&bleConnection);
     shell.setVictronDevice(&victronParser);
+    shell.setTempHumParser(&tempHumParser);
     shell.setLedStrip(&ledStrip);
     shell.setTelnetLogServer(&telnetLogServer);
     shell.setUploadClient(&uploadClient);
@@ -160,6 +164,8 @@ static void loop(void *pvParameters) {
     victronParser.setup();
     victronParser.setUploadClient(&uploadClient);
     victronParser.setSdLogger(&sdLogger);
+    tempHumParser.setUploadClient(&uploadClient);
+    tempHumParser.setSdLogger(&sdLogger);
 
     startSntp();
 

@@ -4,8 +4,7 @@
 // TODO: Re-add
 //#include "Sen66Device.h"
 #include "TelnetServer.h"
-// TODO: Re-add
-//#include "TempHumidityParser.h"
+#include "TempHumidityParser.h"
 #include "WifiConnection.h"
 #include "VictronDevice.h"
 #include "UploadDataClient.h"
@@ -681,9 +680,9 @@ void YRShellEsp32::executeFunction( uint16_t n) {
             break;
           case SE_CC_setTempHumidityLogging:
               t1 = popParameterStack();
-              // if( m_tempHumParser) {
-              //   m_tempHumParser->enableAdditionalLogging(t1);
-              // }
+              if( m_tempHumParser) {
+                m_tempHumParser->enableAdditionalLogging(t1);
+              }
               break;
           case SE_CC_setSen66Enable:
               t1 = popParameterStack();

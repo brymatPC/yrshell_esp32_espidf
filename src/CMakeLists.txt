@@ -11,6 +11,7 @@ idf_component_register( SRCS
                             "WifiConnection.cpp"
                             "TelnetServer.cpp"
                             "SystemStatus.cpp"
+                            "TempHumidityParser.cpp"
                         PRIV_REQUIRES
                             nvs_flash
                             spi_flash
