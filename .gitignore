@@ -26,6 +26,7 @@ compile_commands.json
 
 # ESP-IDF dependencies
 managed_components/
+sdkconfig
 
 # misc
 *.old
