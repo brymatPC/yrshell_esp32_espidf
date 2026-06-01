@@ -12,6 +12,7 @@ idf_component_register( SRCS
                             "TelnetServer.cpp"
                             "SystemStatus.cpp"
                             "TempHumidityParser.cpp"
+                            "Sen66Device.cpp"
                         PRIV_REQUIRES
                             nvs_flash
                             spi_flash

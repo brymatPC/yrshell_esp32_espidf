@@ -1,8 +1,7 @@
 #include "YRShellEsp32.h"
 #include "AppManager.h"
 #include "LedStripDriver.h"
-// TODO: Re-add
-//#include "Sen66Device.h"
+#include "Sen66Device.h"
 #include "TelnetServer.h"
 #include "TempHumidityParser.h"
 #include "WifiConnection.h"
@@ -586,9 +585,9 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               if(m_victronDevice) {
                 m_victronDevice->save();
               }
-              // if(m_sen66Device) {
-              //   m_sen66Device->save();
-              // }
+              if(m_sen66Device) {
+                m_sen66Device->save();
+              }
               if(m_uploadClient) {
                 m_uploadClient->save();
               }
@@ -686,9 +685,9 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               break;
           case SE_CC_setSen66Enable:
               t1 = popParameterStack();
-              // if( m_sen66Device) {
-              //   m_sen66Device->setEnabled(t1);
-              // }
+              if( m_sen66Device) {
+                m_sen66Device->setEnabled(t1);
+              }
             break;
           case SE_CC_setUploadIp:
               t1 = popParameterStack();

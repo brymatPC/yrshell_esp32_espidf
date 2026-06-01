@@ -22,6 +22,8 @@
 #include "VictronDevice.h"
 #include "Utilities.h"
 #include "TempHumidityParser.h"
+#include <SensirionI2cSen66.h>
+#include "Sen66Device.h"
 
 #include "esp_littlefs.h"
 #include "esp_netif_sntp.h"
@@ -53,6 +55,9 @@ UploadDataClient uploadClient;
 SystemStatus systemStatus;
 VictronDevice victronParser;
 TempHumidityParser tempHumParser;
+
+SensirionI2cSen66 sensor;
+Sen66Device sen66Device(sensor);
 
 void timeSyncNotification(struct timeval *tv) {
     ESP_LOGI(TAG, "Time synchronization event");
