@@ -4,11 +4,10 @@
 #include <stdint.h>
 #include <Sliceable.h>
 #include <IntervalTimer.h>
-#include <SensirionI2cSen66.h>
 
 #define SENSIRION_SN_LEN (32)
 #define SENSIRION_STATE_LEN (8)
-#define MAX_SEN66_SEND_BUF_SIZE 164
+#define MAX_SEN66_SEND_BUF_SIZE 256
 
 class UploadDataClient;
 class SdLogger;
@@ -21,7 +20,6 @@ private:
     static const unsigned int s_STARTUP_OFFSET_MS;
     static char s_ROUTE[];
     
-    SensirionI2cSen66 &m_sensor;
     bool m_enabled;
     IntervalTimer m_timer;
     IntervalTimer m_uploadTimer;
@@ -58,7 +56,7 @@ private:
     void writeReadings();
 
 public:
-    Sen66Device(SensirionI2cSen66 &sensor);
+    Sen66Device();
     virtual ~Sen66Device() { }
     virtual const char* sliceName( ) { return "Sen66Device"; }
 

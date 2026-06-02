@@ -4,6 +4,12 @@
 #include "Utilities.h"
 #include "esp_log_custom.h"
 
+#include "nvs.h"
+#include "nvs_flash.h"
+
+#include <sensirion_i2c_hal.h>
+#include <sen66_i2c.h>
+
 // Used by Sensirion Library
 #ifndef NO_ERROR
 #define NO_ERROR 0
@@ -36,8 +42,7 @@ const unsigned int Sen66Device::s_UPLOAD_TIME_MS = 60000;
 const unsigned int Sen66Device::s_STARTUP_OFFSET_MS = 0;
 char Sen66Device::s_ROUTE[] = "/sen66";
 
-Sen66Device::Sen66Device(SensirionI2cSen66 &sensor) :
-    m_sensor(sensor),
+Sen66Device::Sen66Device() :
     m_uploadClient(nullptr),
     m_sdLogger(nullptr)
 {
@@ -54,7 +59,6 @@ void Sen66Device::setup() {
     esp_err_t err;
     uint32_t _handle;
     uint8_t temp;
-    size_t len = VICTRON_KEY_LEN;
     err = nvs_open(s_PREF_NAMESPACE, NVS_READONLY, &_handle);
     if(err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to open nvs partition, err: %lu", err);
@@ -90,8 +94,8 @@ void Sen66Device::save() {
 }
 void Sen66Device::read() {
 
-    int16_t error = m_sensor.readMeasuredValuesAsIntegers(
-        pm1p0, pm2p5, pm4p0, pm10p0, humidity, temperature, vocIndex, noxIndex, co2);
+    int16_t error = sen66_read_measured_values_as_integers(
+        &pm1p0, &pm2p5, &pm4p0, &pm10p0, &humidity, &temperature, &vocIndex, &noxIndex, &co2);
     if (error != NO_ERROR) {
         ESP_LOGW(TAG, "error executing read_measured_values_as_integers(): %i", error);
     } else {
@@ -107,8 +111,8 @@ void Sen66Device::logReadings() {
 }
 void Sen66Device::uploadReadings() {
     if(!m_uploadClient) return;
-    snprintf(m_sendBuf, MAX_SEN66_SEND_BUF_SIZE, "{\"up\":%u,\"sn\":\"%s\",\"pm1\":%u,\"pm2\":%u,\"pm4\":%u,\"pm10\":%u,\"t\":%d,\"h\":%d, \"voc\":%d,\"nox\":%d,\"co2\":%u}",
-        (millis()-m_resetTimeMs), m_serialNumber, pm1p0, pm2p5, pm4p0, pm10p0, temperature, humidity, vocIndex, noxIndex, co2);
+    snprintf(m_sendBuf, MAX_SEN66_SEND_BUF_SIZE, "{\"up\":%lu,\"sn\":\"%s\",\"pm1\":%u,\"pm2\":%u,\"pm4\":%u,\"pm10\":%u,\"t\":%d,\"h\":%d, \"voc\":%d,\"nox\":%d,\"co2\":%u}",
+        (HW_getMillis()-m_resetTimeMs), m_serialNumber, pm1p0, pm2p5, pm4p0, pm10p0, temperature, humidity, vocIndex, noxIndex, co2);
     m_uploadClient->sendFile(s_ROUTE, m_sendBuf, strlen(m_sendBuf));
 }
 void Sen66Device::writeReadings() {
@@ -116,8 +120,8 @@ void Sen66Device::writeReadings() {
     if(!m_sdLogger) return;
     char ts[51];
     getRtcTimeStr(ts, 51);
-    snprintf(m_logBuf, MAX_SEN66_SEND_BUF_SIZE, "{\"ts\":\"%s\",\"up\":%u,\"sn\":\"%s\",\"pm1\":%u,\"pm2\":%u,\"pm4\":%u,\"pm10\":%u,\"t\":%d,\"h\":%d, \"voc\":%d,\"nox\":%d,\"co2\":%u}\r\n",
-        ts, (millis()-m_resetTimeMs), m_serialNumber, pm1p0, pm2p5, pm4p0, pm10p0, temperature, humidity, vocIndex, noxIndex, co2);
+    snprintf(m_logBuf, MAX_SEN66_SEND_BUF_SIZE, "{\"ts\":\"%s\",\"up\":%lu,\"sn\":\"%s\",\"pm1\":%u,\"pm2\":%u,\"pm4\":%u,\"pm10\":%u,\"t\":%d,\"h\":%d, \"voc\":%d,\"nox\":%d,\"co2\":%u}\r\n",
+        ts, (HW_getMillis()-m_resetTimeMs), m_serialNumber, pm1p0, pm2p5, pm4p0, pm10p0, temperature, humidity, vocIndex, noxIndex, co2);
     m_sdLogger->log(TAG, m_logBuf, firstRun);
     firstRun = false;
 }
@@ -130,7 +134,10 @@ void Sen66Device::slice( void) {
             }
         break;
         case STATE_RESET:
-            error = m_sensor.deviceReset();
+            sensirion_i2c_hal_init();
+            sen66_init(SEN66_I2C_ADDR_6B);
+
+            error = sen66_device_reset();
             if (error != NO_ERROR) {
                 ESP_LOGW(TAG, "error executing device_reset(): %i", error);
                 m_state = STATE_ERROR;
@@ -146,7 +153,7 @@ void Sen66Device::slice( void) {
             }
         break;
         case STATE_SERIAL_NUM:
-            error = m_sensor.getSerialNumber(m_serialNumber, SENSIRION_SN_LEN);
+            error = sen66_get_serial_number(m_serialNumber, SENSIRION_SN_LEN);
             if (error != NO_ERROR) {
                 ESP_LOGW(TAG, "error executing getSerialNumber(): %i", error);
                 m_state = STATE_ERROR;
@@ -156,7 +163,7 @@ void Sen66Device::slice( void) {
             }
         break;
         case STATE_VERSION:
-            error = m_sensor.getVersion(m_majorVer, m_minorVer);
+            error = sen66_get_version(&m_majorVer, &m_minorVer);
             if (error != NO_ERROR) {
                 ESP_LOGW(TAG, "error executing getVersion(): %i", error);
                 m_state = STATE_ERROR;
@@ -166,7 +173,7 @@ void Sen66Device::slice( void) {
             }
         break;
         case STATE_START:
-            error = m_sensor.startContinuousMeasurement();
+            error = sen66_start_continuous_measurement();
             if (error != NO_ERROR) {
                 ESP_LOGW(TAG, "error executing startContinuousMeasurement(): %i", error);
                 m_state = STATE_ERROR;
@@ -174,7 +181,7 @@ void Sen66Device::slice( void) {
                 ESP_LOGI(TAG, "Sensirion started");
                 m_timer.setInterval(s_SAMPLE_TIME_MS);
                 m_uploadTimer.setInterval(s_UPLOAD_TIME_MS);
-                m_resetTimeMs = millis();
+                m_resetTimeMs = HW_getMillis();
                 m_state = STATE_IDLE;
             }
         break;
@@ -195,7 +202,7 @@ void Sen66Device::slice( void) {
             m_state = STATE_READ_STATE;
         break;
         case STATE_READ_STATE:
-            error = m_sensor.getVocAlgorithmState(m_vocState, SENSIRION_STATE_LEN);
+            error = sen66_get_voc_algorithm_state(m_vocState, SENSIRION_STATE_LEN);
             if (error != NO_ERROR) {
                 ESP_LOGW(TAG, "error executing getVocAlgorithmState(): %i", error);
             } else {

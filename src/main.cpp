@@ -22,7 +22,6 @@
 #include "VictronDevice.h"
 #include "Utilities.h"
 #include "TempHumidityParser.h"
-#include <SensirionI2cSen66.h>
 #include "Sen66Device.h"
 
 #include "esp_littlefs.h"
@@ -56,8 +55,7 @@ SystemStatus systemStatus;
 VictronDevice victronParser;
 TempHumidityParser tempHumParser;
 
-SensirionI2cSen66 sensor;
-Sen66Device sen66Device(sensor);
+Sen66Device sen66Device;
 
 void timeSyncNotification(struct timeval *tv) {
     ESP_LOGI(TAG, "Time synchronization event");
@@ -136,6 +134,7 @@ static void loop(void *pvParameters) {
     bleConnection.addParser(BleParserTypes::victron, &victronParser);
     bleConnection.addParser(BleParserTypes::tempHumidity, &tempHumParser);
 
+
     wifiConnection.setup();
     wifiConnection.enable();
 
@@ -157,6 +156,7 @@ static void loop(void *pvParameters) {
     shell.setBleConnection(&bleConnection);
     shell.setVictronDevice(&victronParser);
     shell.setTempHumParser(&tempHumParser);
+    shell.setSen66Device(&sen66Device);
     shell.setLedStrip(&ledStrip);
     shell.setTelnetLogServer(&telnetLogServer);
     shell.setUploadClient(&uploadClient);
@@ -171,6 +171,9 @@ static void loop(void *pvParameters) {
     victronParser.setSdLogger(&sdLogger);
     tempHumParser.setUploadClient(&uploadClient);
     tempHumParser.setSdLogger(&sdLogger);
+    sen66Device.setup();
+    sen66Device.setUploadClient(&uploadClient);
+    sen66Device.setSdLogger(&sdLogger);
 
     startSntp();
 

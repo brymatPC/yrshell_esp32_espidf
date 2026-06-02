@@ -24,4 +24,5 @@ idf_component_register( SRCS
                             mbedtls
                             espUtilities
                             yrShell
+                            sensirionI2C
                        INCLUDE_DIRS ".")
