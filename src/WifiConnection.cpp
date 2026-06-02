@@ -6,6 +6,7 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "lwip/inet.h"
+#include "dhcpserver/dhcpserver.h"
 
 #include <stdio.h>
 
@@ -546,23 +547,44 @@ bool WifiConnection::isOff() {
 }
 void WifiConnection::hostConfig( ) {
     uint32_t v;
-    uint32_t ip = 0;
-    uint32_t gw = 0;
-    uint32_t mask = 0;
+    esp_netif_ip_info_t info;
+    esp_err_t err;
+    bool dhcpEnabled = false;
 
     if( stringToUnsignedX( m_hostIp, &v)) {
-        ip = v;
+        info.ip.addr = v;
     }
     if( stringToUnsignedX( m_hostGateway, &v)) {
-        gw = v;
+        info.gw.addr = v;
     }
     if( stringToUnsignedX( m_hostMask, &v)) {
-        mask = v;
+        info.netmask.addr = v;
     }
-    // TODO: Allow configuration of AP
-    // if( !WiFi.softAPConfig( IPAddress(ip), IPAddress(gw) , IPAddress( mask))) {
-    //   ESP_LOGW(TAG, "Host config failed");
-    // }
+
+    esp_netif_flags_t flags = esp_netif_get_flags(_esp_ap_netif);
+    if (flags & ESP_NETIF_DHCP_SERVER) {
+        dhcpEnabled = true;
+    }
+
+    err = esp_netif_dhcps_stop(_esp_ap_netif);
+    if (err && err != ESP_ERR_ESP_NETIF_DHCP_ALREADY_STOPPED) {
+      ESP_LOGE(TAG, "Failed to stop DHCPS - Error 0x%04x: %s", err, esp_err_to_name(err));
+      return;
+    }
+
+     // Set IPv4, Netmask, Gateway
+    err = esp_netif_set_ip_info(_esp_ap_netif, &info);
+    if (err) {
+         ESP_LOGE(TAG, "Netif Set IP Failed! 0x%04x: %s", err, esp_err_to_name(err));
+    }
+
+    if(dhcpEnabled) {
+        err = esp_netif_dhcps_start(_esp_ap_netif);
+        if (err) {
+            ESP_LOGW(TAG, "Failed to restart DHCPS - Error 0x%04x: %s", err, esp_err_to_name(err));
+            return;
+        }
+    }
 }
 void WifiConnection::configBasicAp() {
 
