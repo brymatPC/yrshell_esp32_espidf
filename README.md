@@ -12,3 +12,8 @@ This library has been tested on the ESP32.
 
 # Setup PC Software
 This library is configured for use with esp-idf within vscode.
+
+# SDKConfig
+* Generate sdkconfig.defaults
+    * `idf.py save-defconfig`
+    
