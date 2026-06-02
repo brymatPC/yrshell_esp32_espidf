@@ -519,6 +519,9 @@ void WifiConnection::slice( ) {
             apDisconnect();
             m_hostActive = false;
         }
+        if(m_led) {
+            m_led->off();
+        }
         changeState( STATE_WAIT_OFF);
     break;
     case STATE_WAIT_OFF:

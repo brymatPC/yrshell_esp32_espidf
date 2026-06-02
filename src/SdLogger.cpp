@@ -96,12 +96,21 @@ void SdLogger::begin(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs) {
     m_card = card;
     m_connected = true;
 }
+void SdLogger::stop() {
+    if(!m_connected) return;
+    esp_err_t err = esp_vfs_fat_sdcard_unmount(MOUNT_POINT, m_card);
+    if(err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to unmount sdcard, err: %lu", err);
+    }
+    m_connected = false;
+}
 
 void SdLogger::loop() {
     if(m_timer.isNextInterval()) {
         ESP_LOGI(TAG, "SD Connection check");
         if(!m_connected) {
             ESP_LOGI(TAG, "SD card not connected, retrying...");
+            // TODO: Re-add SDCard re-connection attempt
             // if(begin(m_cs, sd_spi)) {
                  ESP_LOGW(TAG, "SD card not found");
             // }
