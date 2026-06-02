@@ -31,7 +31,9 @@ void SdLogger::begin(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs) {
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
         .format_if_mount_failed = false,
         .max_files = 5,
-        .allocation_unit_size = 16 * 1024
+        .allocation_unit_size = 16 * 1024,
+        .disk_status_check_enable = false,
+        .use_one_fat = false,
     };
     sdmmc_card_t *card;
     const char mount_point[] = MOUNT_POINT;
@@ -55,7 +57,15 @@ void SdLogger::begin(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs) {
         .sclk_io_num = sck,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
+        .data4_io_num = -1,
+        .data5_io_num = -1,
+        .data6_io_num = -1,
+        .data7_io_num = -1,
+        .data_io_default_level = false,
         .max_transfer_sz = 4000,
+        .flags = 0,
+        .isr_cpu_id = ESP_INTR_CPU_AFFINITY_AUTO,
+        .intr_flags = 0,
     };
 
     ret = spi_bus_initialize((spi_host_device_t) host.slot, &bus_cfg, SDSPI_DEFAULT_DMA);
@@ -211,7 +221,6 @@ long SdLogger::findLargestNumberInFilenames(const char* dir, const char* prefix)
 
     long maxNum = 0;
     struct dirent *entry;
-    char full_path[256];
 
     while ((entry = readdir(root)) != NULL) {
         const char* name = entry->d_name;

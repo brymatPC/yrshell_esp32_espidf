@@ -34,7 +34,6 @@ static void print_real_time_stats(TickType_t xTicksToWait) {
     TaskStatus_t end_array[MAX_TASKS_TO_TRACK];
     UBaseType_t start_array_size, end_array_size;
     configRUN_TIME_COUNTER_TYPE start_run_time, end_run_time;
-    esp_err_t ret;
 
     if(uxTaskGetNumberOfTasks() + ARRAY_SIZE_OFFSET >= MAX_TASKS_TO_TRACK) {
       ESP_LOGI(TAG, "cpu stats: numTasks=%u, array offset=%u", uxTaskGetNumberOfTasks(), (unsigned)ARRAY_SIZE_OFFSET);

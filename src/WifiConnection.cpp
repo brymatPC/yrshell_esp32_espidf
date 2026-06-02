@@ -318,7 +318,7 @@ bool WifiConnection::isNetworkConnected( void) {
 void WifiConnection::slice( ) {
   const char* p;
   const char* q;
-  int i, k, m;
+  int k, m;
   esp_err_t err;
   switch( m_state) {
     case STATE_RESET:
@@ -335,7 +335,7 @@ void WifiConnection::slice( ) {
         if( m_led) {
             m_led->off();
         }
-        if( m_enable && getNumberOfNetworks() >= 0) {
+        if( m_enable && getNumberOfNetworks() > 0) {
             m_timer.setInterval( m_connectTimeout);
             changeState( STATE_LOAD_NETWORK_NAME);
         }
@@ -572,18 +572,12 @@ void WifiConnection::configBasicAp() {
 }
 void WifiConnection::apConnect(void)
 {
-    wifi_config_t wifi_config = {
-        .ap = {
-            .channel = 1,
-            .authmode = WIFI_AUTH_WPA3_PSK,
-            .max_connection = 3,
-            .pmf_cfg = {
-                .required = true,
-            },
-            .sae_pwe_h2e = WPA3_SAE_PWE_BOTH,
-            .gtk_rekey_interval = 600,
-        },
-    };
+    wifi_config_t wifi_config = {};
+    wifi_config.ap.max_connection = 3;
+    wifi_config.ap.pmf_cfg.required = true;
+    wifi_config.ap.authmode = WIFI_AUTH_WPA3_PSK;
+    wifi_config.ap.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;
+    wifi_config.ap.gtk_rekey_interval = 600;
     size_t ssidLen = strlen(m_hostName);
     memcpy(wifi_config.ap.ssid, m_hostName, ssidLen);
     wifi_config.ap.ssid_len = ssidLen;
