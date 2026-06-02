@@ -34,11 +34,10 @@
 #include "sensirion_config.h"
 
 #include <esp_log.h>
+#include <driver/i2c_master.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <string.h>
-
-#include "sensirion_i2c_esp32_config.h"
 
 static const char* TAG = "sensirion_i2c_hal";
 #define I2C_SDA_PIN 1
@@ -61,7 +60,6 @@ static const char* TAG = "sensirion_i2c_hal";
 #define UNUSED_PARAM(x) (void)x
 
 static i2c_master_dev_handle_t dev = {0};
-static struct esp32_i2c_config i2c_cfg = {0};
 static esp_err_t i2c_ok = ESP_OK;
 
 /*
@@ -87,19 +85,6 @@ int16_t sensirion_i2c_hal_select_bus(uint8_t bus_idx) {
      * bus
      */
     return NOT_IMPLEMENTED_ERROR;
-}
-
-esp_err_t sensirion_i2c_config_esp32(struct esp32_i2c_config* cfg) {
-    if (cfg != NULL) {
-        memcpy(&i2c_cfg, cfg, sizeof(*cfg));
-        return ESP_OK;
-    } else {
-        return ESP_FAIL;
-    }
-}
-
-esp_err_t sensirion_i2c_esp32_ok(void) {
-    return i2c_ok;
 }
 
 /**
