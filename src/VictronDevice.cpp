@@ -64,7 +64,7 @@ void VictronDevice::setup() {
     m_key[0] = '\0';
     err = nvs_get_blob(_handle, "key", m_key, &len);
     if(err != ESP_OK) {
-        ESP_LOGE(TAG, "nvs_get_str fail: key - %lu", err);
+        ESP_LOGE(TAG, "nvs_get_blob fail: key - %lu", err);
     }
     nvs_close(_handle);
 }
@@ -78,7 +78,7 @@ void VictronDevice::save() {
     }
     err = nvs_set_blob(_handle, "key", m_key, VICTRON_KEY_LEN);
     if(err != ESP_OK) {
-        ESP_LOGE(TAG, "nvs_set_str fail: key -  %lu", err);
+        ESP_LOGE(TAG, "nvs_set_blob fail: key -  %lu", err);
     }
     err = nvs_commit(_handle);
     if(err != ESP_OK) {

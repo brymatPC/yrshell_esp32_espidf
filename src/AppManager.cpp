@@ -4,6 +4,8 @@
 
 #include "esp_log_custom.h"
 #include "esp_sleep.h"
+#include "nvs.h"
+#include "nvs_flash.h"
 
 static char s_resetUnknownStr[]     = "unknown";
 static char s_resetPowerOnStr[]     = "power-on";
@@ -48,7 +50,6 @@ AppManager::AppManager(const char* appName, const char* appVersion) :
     m_sleepEnabled(true),
     m_state(STATE_RESET)
 {
-    resetReasonStartup = esp_reset_reason();
     m_bootCount++;
 
     m_timer.setInterval(5000);
@@ -58,17 +59,51 @@ AppManager::~AppManager() {
 }
 
 void AppManager::init() {
-    // pref.begin(s_PREF_NAMESPACE, true);
-    // m_runTimeMs = pref.getULong("runt", s_DEFAULT_RUN_TIME_MS);
-    // m_sleepTimeMs = pref.getULong("slpt", s_DEFAULT_SLEEP_TIME_MS);
-    // pref.end();
+    esp_err_t err;
+    uint32_t _handle;
+    
+    // BAM - 20260602 - Need to set this here rather than constructor as it isn't available yet in the constructor
+    resetReasonStartup = esp_reset_reason();
+
+    err = nvs_open(s_PREF_NAMESPACE, NVS_READONLY, &_handle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open nvs partition, err: %lu", err);
+        return;
+    }
+    m_runTimeMs = s_DEFAULT_RUN_TIME_MS;
+    err = nvs_get_u32(_handle, "runt", &m_runTimeMs);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_u32 fail: runt - %lu", err);
+    }
+    m_sleepTimeMs = s_DEFAULT_SLEEP_TIME_MS;
+    err = nvs_get_u32(_handle, "slpt", &m_runTimeMs);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_u32 fail: slpt - %lu", err);
+    }
+    nvs_close(_handle);
 }
 void AppManager::save() {
-    // pref.begin(s_PREF_NAMESPACE, false);
-    // pref.putULong("runt", m_runTimeMs);
-    // pref.putULong("slpt", m_sleepTimeMs);
-    // pref.end();
-    ESP_LOGI(TAG, "AppManager::save: pref updated");
+    esp_err_t err;
+    uint32_t _handle;
+    err = nvs_open(s_PREF_NAMESPACE, NVS_READWRITE, &_handle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open nvs partition, err: %lu", err);
+        return;
+    }
+    err = nvs_set_u32(_handle, "runt", m_runTimeMs);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_u32 fail: runt -  %lu", err);
+    }
+    err = nvs_set_u32(_handle, "slpt", m_sleepTimeMs);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_u32 fail: slpt -  %lu", err);
+    }
+    err = nvs_commit(_handle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_commit fail: %lu", err);
+    }
+    nvs_close(_handle);
+    ESP_LOGI(TAG, "Preferences updated");
 }
 
 void AppManager::slice( void) {
