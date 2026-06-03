@@ -22,6 +22,7 @@ idf_component_register( SRCS
                             fatfs
                             sdmmc
                             mbedtls
+                            esp_app_format
                             espUtilities
                             yrShell
                             sensirionI2C

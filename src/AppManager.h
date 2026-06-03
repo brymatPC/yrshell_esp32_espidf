@@ -22,6 +22,7 @@ private:
     const char* m_appVersion;
     esp_reset_reason_t resetReasonStartup;
     IntervalTimer m_timer;
+    uint32_t m_sleepWaitTimer;
 
     uint32_t m_runTimeMs;
     uint32_t m_sleepTimeMs;
@@ -33,6 +34,7 @@ private:
     uint32_t m_state;
 
     const char *resetReasonToString(esp_reset_reason_t reason);
+    void printAppInfo(void);
 public:
     AppManager(const char* appName, const char* appVersion);
     virtual ~AppManager();

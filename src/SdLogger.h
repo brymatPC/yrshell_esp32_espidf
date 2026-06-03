@@ -13,6 +13,7 @@ public:
     SdLogger();
 
     void begin(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs);
+    void stop();
     void loop();
 
     void log(const char *filePrefix, const char *record, bool createNew = false);

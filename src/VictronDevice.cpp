@@ -64,7 +64,7 @@ void VictronDevice::setup() {
     m_key[0] = '\0';
     err = nvs_get_blob(_handle, "key", m_key, &len);
     if(err != ESP_OK) {
-        ESP_LOGE(TAG, "nvs_get_str fail: key - %lu", err);
+        ESP_LOGE(TAG, "nvs_get_blob fail: key - %lu", err);
     }
     nvs_close(_handle);
 }
@@ -78,7 +78,7 @@ void VictronDevice::save() {
     }
     err = nvs_set_blob(_handle, "key", m_key, VICTRON_KEY_LEN);
     if(err != ESP_OK) {
-        ESP_LOGE(TAG, "nvs_set_str fail: key -  %lu", err);
+        ESP_LOGE(TAG, "nvs_set_blob fail: key -  %lu", err);
     }
     err = nvs_commit(_handle);
     if(err != ESP_OK) {
@@ -229,8 +229,8 @@ void VictronDevice::decrypt() {
     uint16_t timeToGo = (outputData[1] << 8) | (outputData[0]);
     uint16_t batteryVoltage = (outputData[3] << 8) | (outputData[2]);
     // No alarms
-    uint16_t auxVoltage = (outputData[7] << 8) | (outputData[6]);
-    uint8_t auxType = (outputData[8] & 0x03);
+    // uint16_t auxVoltage = (outputData[7] << 8) | (outputData[6]);
+    // uint8_t auxType = (outputData[8] & 0x03);
     uint32_t batteryCurrent_u = (outputData[10] << 14) | (outputData[9] << 6) | ((outputData[8] & 0xFC) >> 2);
     uint32_t consumed = ((outputData[13] & 0x0F) << 16) | (outputData[12] << 8) | (outputData[11]);
     uint32_t stateOfCharge = ((outputData[14] & 0x3F) << 4) | ((outputData[13] & 0xF0) >> 4);

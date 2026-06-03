@@ -4,6 +4,9 @@
 
 #include "esp_log_custom.h"
 #include "esp_sleep.h"
+#include "nvs.h"
+#include "nvs_flash.h"
+#include <esp_app_desc.h>
 
 static char s_resetUnknownStr[]     = "unknown";
 static char s_resetPowerOnStr[]     = "power-on";
@@ -32,11 +35,12 @@ const uint32_t AppManager::s_STATUS_INTERVAL_MS = 30000;
 RTC_DATA_ATTR static int m_bootCount = 0;
 
 typedef enum {
-  STATE_RESET     = 0,
-  STATE_RUNNING   = 1,
-  STATE_SLEEP_REQ = 2,
-  STATE_SLEEP     = 3,
-  STATE_OFF       = 4,
+  STATE_RESET      = 0,
+  STATE_RUNNING    = 1,
+  STATE_SLEEP_REQ  = 2,
+  STATE_SLEEP      = 3,
+  STATE_SLEEP_WAIT = 5,
+  STATE_OFF        = 4,
 
 } appStates_t;
 
@@ -48,7 +52,6 @@ AppManager::AppManager(const char* appName, const char* appVersion) :
     m_sleepEnabled(true),
     m_state(STATE_RESET)
 {
-    resetReasonStartup = esp_reset_reason();
     m_bootCount++;
 
     m_timer.setInterval(5000);
@@ -58,17 +61,57 @@ AppManager::~AppManager() {
 }
 
 void AppManager::init() {
-    // pref.begin(s_PREF_NAMESPACE, true);
-    // m_runTimeMs = pref.getULong("runt", s_DEFAULT_RUN_TIME_MS);
-    // m_sleepTimeMs = pref.getULong("slpt", s_DEFAULT_SLEEP_TIME_MS);
-    // pref.end();
+    esp_err_t err;
+    uint32_t _handle;
+    
+    // BAM - 20260602 - Need to set this here rather than constructor as it isn't available yet in the constructor
+    resetReasonStartup = esp_reset_reason();
+
+    err = nvs_open(s_PREF_NAMESPACE, NVS_READONLY, &_handle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open nvs partition, err: %lu", err);
+        return;
+    }
+    m_runTimeMs = s_DEFAULT_RUN_TIME_MS;
+    err = nvs_get_u32(_handle, "runt", &m_runTimeMs);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_u32 fail: runt - %lu", err);
+    }
+    m_sleepTimeMs = s_DEFAULT_SLEEP_TIME_MS;
+    err = nvs_get_u32(_handle, "slpt", &m_sleepTimeMs);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_u32 fail: slpt - %lu", err);
+    }
+    nvs_close(_handle);
 }
 void AppManager::save() {
-    // pref.begin(s_PREF_NAMESPACE, false);
-    // pref.putULong("runt", m_runTimeMs);
-    // pref.putULong("slpt", m_sleepTimeMs);
-    // pref.end();
-    ESP_LOGI(TAG, "AppManager::save: pref updated");
+    esp_err_t err;
+    uint32_t _handle;
+    err = nvs_open(s_PREF_NAMESPACE, NVS_READWRITE, &_handle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open nvs partition, err: %lu", err);
+        return;
+    }
+    err = nvs_set_u32(_handle, "runt", m_runTimeMs);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_u32 fail: runt -  %lu", err);
+    }
+    err = nvs_set_u32(_handle, "slpt", m_sleepTimeMs);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_u32 fail: slpt -  %lu", err);
+    }
+    err = nvs_commit(_handle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_commit fail: %lu", err);
+    }
+    nvs_close(_handle);
+    ESP_LOGI(TAG, "Preferences updated");
+}
+void AppManager::printAppInfo(void) {
+    const esp_app_desc_t *app_desc = esp_app_get_description();
+    ESP_LOGI(TAG, "Project Version/Git Hash: %s", app_desc->version);
+    ESP_LOGI(TAG, "Project Compile Date/Time: %s %s", app_desc->date, app_desc->time);
+    ESP_LOGI(TAG, "IDF Version: %s", app_desc->idf_ver);
 }
 
 void AppManager::slice( void) {
@@ -80,6 +123,7 @@ void AppManager::slice( void) {
         ESP_LOGI(TAG, "bootCount: %d", m_bootCount);
         ESP_LOGI(TAG, "Reset Reason: %d, %s", resetReasonStartup, resetStr);
         printFrequencies();
+        printAppInfo();
     }
 
     switch(m_state) {
@@ -98,8 +142,16 @@ void AppManager::slice( void) {
         case STATE_SLEEP_REQ:
             // Force sleep after 3 seconds
             if(HW_getMillis() > m_runTimeMs + 3000) {
-                m_state = STATE_SLEEP;
+                ESP_LOGW(TAG, "Sleep ready took too long, going to sleep anyway");
+                m_sleepWaitTimer = HW_getMillis();
+                m_state = STATE_SLEEP_WAIT;
             } else if(sleepReady_cb == nullptr || sleepReady_cb()) {
+                m_sleepWaitTimer = HW_getMillis();
+                m_state = STATE_SLEEP_WAIT;
+            }
+        break;
+        case STATE_SLEEP_WAIT:
+            if(HW_getMillis() > m_sleepWaitTimer + 5000) {
                 m_state = STATE_SLEEP;
             }
         break;

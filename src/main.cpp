@@ -103,6 +103,17 @@ int custom_log_handler(const char* format, va_list args) {
     return ret; 
 }
 
+void preSleepNotification(void) {
+    bleConnection.off();
+    wifiConnection.off();
+    sdLogger.stop();
+    ledStrip.off();
+}
+
+bool sleepReady(void) {
+   return bleConnection.isOff() && wifiConnection.isOff();
+}
+
 bool mountLittleFs() {
     esp_vfs_littlefs_conf_t conf = {
         .base_path = "/littlefs",
@@ -129,6 +140,8 @@ static void loop(void *pvParameters) {
     bool wifiConnected = false;
 
     appMgr.init();
+    appMgr.setPreSleepCallback(preSleepNotification);
+    appMgr.setSleepReadyCallback(sleepReady);
     ledStrip.setup();
     bleConnection.setup();
     bleConnection.addParser(BleParserTypes::victron, &victronParser);
@@ -222,6 +235,11 @@ extern "C" void app_main() {
     esp_log_level_set("TelnetS", ESP_LOG_INFO);
     esp_log_level_set("YRShell", ESP_LOG_INFO);
     esp_log_level_set("Perf   ", ESP_LOG_INFO);
+
+    // Other libraries
+    esp_log_level_set("wifi", ESP_LOG_WARN);
+    esp_log_level_set("wifi", ESP_LOG_WARN);
+    esp_log_level_set("NimBLE", ESP_LOG_WARN);
 
     ESP_LOGI(TAG, "Main Startup");
 

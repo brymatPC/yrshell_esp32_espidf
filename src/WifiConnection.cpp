@@ -6,6 +6,7 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "lwip/inet.h"
+#include "dhcpserver/dhcpserver.h"
 
 #include <stdio.h>
 
@@ -318,7 +319,7 @@ bool WifiConnection::isNetworkConnected( void) {
 void WifiConnection::slice( ) {
   const char* p;
   const char* q;
-  int i, k, m;
+  int k, m;
   esp_err_t err;
   switch( m_state) {
     case STATE_RESET:
@@ -335,7 +336,7 @@ void WifiConnection::slice( ) {
         if( m_led) {
             m_led->off();
         }
-        if( m_enable && getNumberOfNetworks() >= 0) {
+        if( m_enable && getNumberOfNetworks() > 0) {
             m_timer.setInterval( m_connectTimeout);
             changeState( STATE_LOAD_NETWORK_NAME);
         }
@@ -518,6 +519,9 @@ void WifiConnection::slice( ) {
             apDisconnect();
             m_hostActive = false;
         }
+        if(m_led) {
+            m_led->off();
+        }
         changeState( STATE_WAIT_OFF);
     break;
     case STATE_WAIT_OFF:
@@ -546,23 +550,44 @@ bool WifiConnection::isOff() {
 }
 void WifiConnection::hostConfig( ) {
     uint32_t v;
-    uint32_t ip = 0;
-    uint32_t gw = 0;
-    uint32_t mask = 0;
+    esp_netif_ip_info_t info;
+    esp_err_t err;
+    bool dhcpEnabled = false;
 
     if( stringToUnsignedX( m_hostIp, &v)) {
-        ip = v;
+        info.ip.addr = v;
     }
     if( stringToUnsignedX( m_hostGateway, &v)) {
-        gw = v;
+        info.gw.addr = v;
     }
     if( stringToUnsignedX( m_hostMask, &v)) {
-        mask = v;
+        info.netmask.addr = v;
     }
-    // TODO: Allow configuration of AP
-    // if( !WiFi.softAPConfig( IPAddress(ip), IPAddress(gw) , IPAddress( mask))) {
-    //   ESP_LOGW(TAG, "Host config failed");
-    // }
+
+    esp_netif_flags_t flags = esp_netif_get_flags(_esp_ap_netif);
+    if (flags & ESP_NETIF_DHCP_SERVER) {
+        dhcpEnabled = true;
+    }
+
+    err = esp_netif_dhcps_stop(_esp_ap_netif);
+    if (err && err != ESP_ERR_ESP_NETIF_DHCP_ALREADY_STOPPED) {
+      ESP_LOGE(TAG, "Failed to stop DHCPS - Error 0x%04x: %s", err, esp_err_to_name(err));
+      return;
+    }
+
+     // Set IPv4, Netmask, Gateway
+    err = esp_netif_set_ip_info(_esp_ap_netif, &info);
+    if (err) {
+         ESP_LOGE(TAG, "Netif Set IP Failed! 0x%04x: %s", err, esp_err_to_name(err));
+    }
+
+    if(dhcpEnabled) {
+        err = esp_netif_dhcps_start(_esp_ap_netif);
+        if (err) {
+            ESP_LOGW(TAG, "Failed to restart DHCPS - Error 0x%04x: %s", err, esp_err_to_name(err));
+            return;
+        }
+    }
 }
 void WifiConnection::configBasicAp() {
 
@@ -572,18 +597,12 @@ void WifiConnection::configBasicAp() {
 }
 void WifiConnection::apConnect(void)
 {
-    wifi_config_t wifi_config = {
-        .ap = {
-            .channel = 1,
-            .authmode = WIFI_AUTH_WPA3_PSK,
-            .max_connection = 3,
-            .pmf_cfg = {
-                .required = true,
-            },
-            .sae_pwe_h2e = WPA3_SAE_PWE_BOTH,
-            .gtk_rekey_interval = 600,
-        },
-    };
+    wifi_config_t wifi_config = {};
+    wifi_config.ap.max_connection = 3;
+    wifi_config.ap.pmf_cfg.required = true;
+    wifi_config.ap.authmode = WIFI_AUTH_WPA3_PSK;
+    wifi_config.ap.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;
+    wifi_config.ap.gtk_rekey_interval = 600;
     size_t ssidLen = strlen(m_hostName);
     memcpy(wifi_config.ap.ssid, m_hostName, ssidLen);
     wifi_config.ap.ssid_len = ssidLen;

@@ -101,6 +101,13 @@ void LedStripDriver::setup() {
         .resolution_hz = RMT_LED_STRIP_RESOLUTION_HZ,
         .mem_block_symbols = 64, // increase the block size can make the LED less flickering
         .trans_queue_depth = 4, // set the number of transactions that can be pending in the background
+        .intr_priority = 0,
+        .flags = {
+            .invert_out = 0,
+            .with_dma = 0,
+            .allow_pd = 0,
+            .init_level = 0,
+        }
     };
     err = rmt_new_tx_channel(&tx_chan_config, &m_ledChan);
 
@@ -109,8 +116,9 @@ void LedStripDriver::setup() {
     }
 
     const rmt_simple_encoder_config_t simple_encoder_cfg = {
-        .callback = encoder_callback
-        //Note we don't set min_chunk_size here as the default of 64 is good enough.
+        .callback = encoder_callback,
+        .arg = NULL,
+        .min_chunk_size = 64,
     };
     err = rmt_new_simple_encoder(&simple_encoder_cfg, &m_encoder);
 
@@ -152,6 +160,10 @@ void LedStripDriver::transmit(uint32_t pixelVal) {
     
     rmt_transmit_config_t tx_config = {
         .loop_count = 0, // no transfer loop
+        .flags = {
+            .eot_level = 0,
+            .queue_nonblocking = 0,
+        }
     };
     led_strip_pixels[0] = (uint8_t) (pixelVal & 0x000000FF);
     led_strip_pixels[1] = (uint8_t) ((pixelVal & 0x0000FF00) >> 8);
