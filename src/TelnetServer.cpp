@@ -121,7 +121,7 @@ bool TelnetServer::wifiConnected() {
 }
 
 void TelnetServer::changeState( uint8_t newState) {
-    ESP_LOGI(TAG, "Change state from %u to %u", m_state, newState);
+    ESP_LOGD(TAG, "Change state from %u to %u", m_state, newState);
     m_state = newState;
 }
 

@@ -17,3 +17,6 @@ This library is configured for use with esp-idf within vscode.
 * Generate sdkconfig.defaults
     * `idf.py save-defconfig`
     
+
+# ESP Notes
+* 
