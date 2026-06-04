@@ -237,9 +237,9 @@ extern "C" void app_main() {
     esp_log_level_set("Perf   ", ESP_LOG_INFO);
 
     // Other libraries
-    esp_log_level_set("wifi", ESP_LOG_WARN);
-    esp_log_level_set("wifi", ESP_LOG_WARN);
+    esp_log_level_set("wifi", ESP_LOG_INFO);
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
+    esp_log_level_set("sensirion_i2c_hal", ESP_LOG_WARN);
 
     ESP_LOGI(TAG, "Main Startup");
 
