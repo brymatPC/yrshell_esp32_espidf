@@ -1,6 +1,6 @@
 {
     "recommendations": [
-        "pioarduino.pioarduino-ide"
+        "espressif.esp-idf-extension"
     ],
     "unwantedRecommendations": [
         "ms-vscode.cpptools-extension-pack"
