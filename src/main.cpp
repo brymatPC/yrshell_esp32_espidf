@@ -17,6 +17,7 @@
 #include <nvs_flash.h>
 #include <esp_littlefs.h>
 #include <esp_netif_sntp.h>
+#include <driver/usb_serial_jtag.h>
 
 // External components
 #include <CircularQ.h>
@@ -131,6 +132,14 @@ bool mountLittleFs() {
     return true;
 }
 
+void configureUsbSerial() {
+    usb_serial_jtag_driver_config_t usb_serial_jtag_config = {
+        .tx_buffer_size = 1024,
+        .rx_buffer_size = 1024,
+    };
+    usb_serial_jtag_driver_install(&usb_serial_jtag_config);
+}
+
 static void loop(void *pvParameters) {
     unsigned telnetPort = 23;
     unsigned telnetLogPort = 2023;
@@ -154,7 +163,7 @@ static void loop(void *pvParameters) {
     }
 
     if( telnetPort != 0) {
-        telnetServer.init( telnetPort, &shell.getInq(), &shell.getOutq());
+        //telnetServer.init( telnetPort, &shell.getInq(), &shell.getOutq());
     }
 
     uploadClient.init();
@@ -187,6 +196,7 @@ static void loop(void *pvParameters) {
 
     serialMux.init();
     serialMux.set(0, nullptr, &m_logQ);
+    serialMux.set(1, &shell.getInq(), &shell.getOutq());
 
     startSntp();
 
@@ -214,9 +224,21 @@ static void loop(void *pvParameters) {
                 }
             #ifdef YRSHELL_ON_TELNET
                 if(serialSpaceAvailable) {
-                    printf("%c", c);
+                    usb_serial_jtag_write_bytes(&c, 1, 0);
                 }
             #endif
+            }
+        }
+
+        uint16_t count = 0;
+        while (serialMux.getInQ()->spaceAvailable() && count < 32) {
+            uint8_t c;
+            int available = usb_serial_jtag_read_bytes(&c, 1, 0);
+            if(available > 0) {
+                serialMux.getInQ()->put(c);
+                count++;
+            } else {
+                break;
             }
         }
     }
@@ -238,6 +260,7 @@ extern "C" void app_main() {
     esp_log_level_set("YRShell", ESP_LOG_INFO);
     esp_log_level_set("Perf   ", ESP_LOG_INFO);
     esp_log_level_set("SDCard ", ESP_LOG_INFO);
+    esp_log_level_set("MuxQ   ", ESP_LOG_DEBUG);
 
     // Other libraries
     esp_log_level_set("wifi", ESP_LOG_INFO);
@@ -247,6 +270,8 @@ extern "C" void app_main() {
     ESP_LOGI(TAG, "Main Startup");
 
     mountLittleFs();
+
+    configureUsbSerial();
 
     uint32_t ret = xTaskCreatePinnedToCore(&loop, "loop", 4096, NULL, 5, &xHandle, 1);
     ESP_LOGI(TAG, "Task create returned %lu", ret);

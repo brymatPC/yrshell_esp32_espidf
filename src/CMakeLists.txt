@@ -19,6 +19,7 @@ idf_component_register( SRCS
                             esp_driver_rmt
                             esp_wifi
                             esp_driver_gpio
+                            esp_driver_usb_serial_jtag
                             fatfs
                             sdmmc
                             mbedtls
