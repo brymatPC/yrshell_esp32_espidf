@@ -37,6 +37,7 @@ static const int8_t SD_MOSI = 8;
 static const int8_t SD_CS = 11;
 
 CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_logQ;
+CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_telnetLogQ;
 AppManager appMgr(s_appName, s_appVersion);
 YRShellEsp32 shell;
 LedStripDriver ledStrip;
@@ -71,18 +72,19 @@ void startSntp(void) {
     }
 }
 
-bool logOut(char c) {
-  static char logOverflow[] = "\r\n\nLOG DATA DROPPED\r\n\n";
-  bool ret = true;
-    if( m_logQ.spaceAvailable( 24)) {
-      m_logQ.put( c);
+bool logOut(char c, CircularQBase<char> *queue) {
+    static char logOverflow[] = "\r\n\nLOG DATA DROPPED\r\n\n";
+    if(queue == nullptr) return false;
+    bool ret = true;
+    if( queue->spaceAvailable( 24)) {
+        queue->put( c);
     } else {
-      char *s = logOverflow;
-      ret = false;
-      m_logQ.reset();
-      while( *s != '\0') {
-        m_logQ.put( *s++);
-      }
+        char *s = logOverflow;
+        ret = false;
+        queue->reset();
+        while( *s != '\0') {
+            queue->put( *s++);
+        }
     }
     return ret;
 }
@@ -94,9 +96,12 @@ int custom_log_handler(const char* format, va_list args) {
     int ret = vsnprintf(m_logBuf, sizeof(m_logBuf), format, args);
     char *s = m_logBuf;
     while( *s != '\0') {
-      if(!logOut( *s++)) {
-        break;
-      }
+        if(!logOut( *s, &m_logQ)) {
+            break;
+        }
+        // Ignore failure on telnet log Q
+        logOut(*s, &m_telnetLogQ);
+        s++;
     }
     return ret; 
 }
@@ -211,22 +216,24 @@ static void loop(void *pvParameters) {
             wifiConnected = false;
         }
 
-        bool telnetSpaceAvailable = telnetLogServer.spaceAvailable( 32);
-        bool serialSpaceAvailable = true;
         //CircularByteQ *outQ = &m_logQ;
         CircularByteQ *outQ = serialMux.getOutQ();
-        if( outQ->valueAvailable() && (telnetSpaceAvailable || serialSpaceAvailable)) {
+        if( outQ->valueAvailable()) {
             char c;
             for( uint8_t i = 0; i < 32 && outQ->valueAvailable(); i++) {
                 c = outQ->get();
-                if(telnetSpaceAvailable) {
-                    telnetLogServer.put( c);
-                }
             #ifdef YRSHELL_ON_TELNET
-                if(serialSpaceAvailable) {
-                    usb_serial_jtag_write_bytes(&c, 1, 0);
-                }
+                usb_serial_jtag_write_bytes(&c, 1, 0);
             #endif
+            }
+        }
+
+        bool telnetSpaceAvailable = telnetLogServer.spaceAvailable( 32);
+        if( m_telnetLogQ.valueAvailable() && telnetSpaceAvailable) {
+            char c;
+            for( uint8_t i = 0; i < 32 && m_telnetLogQ.valueAvailable(); i++) {
+                c = m_telnetLogQ.get();
+                telnetLogServer.put( c);
             }
         }
 
