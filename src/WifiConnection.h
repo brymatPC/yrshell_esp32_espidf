@@ -1,10 +1,11 @@
 #ifndef WifiConnection_h
 #define WifiConnection_h
 
+#include "LedDriver.h"
 
+// External components
 #include <Sliceable.h>
 #include <IntervalTimer.h>
-#include "LedDriver.h"
 
 #define MAX_WIFI_ENTRY_LEN 32
 #define MAX_WIFI_NETWORKS  4

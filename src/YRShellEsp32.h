@@ -1,11 +1,12 @@
 #ifndef YRSHELL_ESP32_H_
 #define YRSHELL_ESP32_H_
 
-#include <YRShell.h>
-
-#include "YRShellExec.h"
-
+// ESP / C Libraries
 #include <stdio.h>
+
+// External components
+#include <YRShell.h>
+#include <YRShellExec.h>
 
 class DebugLog;
 class AppManager;

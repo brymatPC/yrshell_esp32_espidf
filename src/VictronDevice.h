@@ -1,8 +1,12 @@
 #ifndef VICTRON_DEVICE_H
 #define VICTRON_DEVICE_H
 
+#include "BleParser.h"
+
+// ESP / C Libraries
 #include <stdint.h>
-#include <BleParser.h>
+
+// External components
 #include <Sliceable.h>
 #include <IntervalTimer.h>
 

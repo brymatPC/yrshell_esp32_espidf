@@ -4,9 +4,10 @@
 #include "Utilities.h"
 #include "esp_log_custom.h"
 
-#include "nvs.h"
-#include "nvs_flash.h"
+// ESP / C Libraries
+#include <nvs.h>
 
+// External components
 #include <sensirion_i2c_hal.h>
 #include <sen66_i2c.h>
 

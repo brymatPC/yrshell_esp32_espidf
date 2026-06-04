@@ -1,8 +1,12 @@
 #ifndef TEMP_HUMIDITY_PARSER_H_
 #define TEMP_HUMIDITY_PARSER_H_
 
+#include "BleParser.h"
+
+// ESP / C Libraries
 #include <stdint.h>
-#include <BleParser.h>
+
+// External components
 #include <Sliceable.h>
 #include <IntervalTimer.h>
 

@@ -1,22 +1,17 @@
 #include "SdLogger.h"
+#include "esp_log_custom.h"
 
-// #include <SPI.h>
-// #include <SD.h>
+// ESP / C Libraries
 #include <cstring>
 #include <cstdlib>
 #include <dirent.h>
 #include <sys/stat.h>
-
-#include "esp_log_custom.h"
-#include "esp_err.h"
-#include "esp_vfs_fat.h"
+#include <esp_err.h>
+#include <esp_vfs_fat.h>
 
 static const char* TAG = "SDCard ";
 
 #define MOUNT_POINT "/sdcard"
-
-// For SD Card access
-//SPIClass sd_spi(HSPI);
 
 SdLogger::SdLogger() :
     m_cs(0),

@@ -1,9 +1,12 @@
 #ifndef SD_LOGGER_H_
 #define SD_LOGGER_H_
 
+// ESP / C Libraries
 #include <stdint.h>
+#include <sdmmc_cmd.h>
+
+// External components
 #include <IntervalTimer.h>
-#include "sdmmc_cmd.h"
 
 #define SD_CONN_CHECK_MS (30000)
 #define SD_FILE_MAX_SIZE (1024 * 1024)

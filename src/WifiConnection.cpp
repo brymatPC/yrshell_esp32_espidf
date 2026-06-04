@@ -1,14 +1,13 @@
 #include "WifiConnection.h"
 #include "esp_log_custom.h"
-#include "esp_mac.h"
-#include "esp_wifi.h"
-#include "esp_event.h"
-#include "nvs.h"
-#include "nvs_flash.h"
-#include "lwip/inet.h"
-#include "dhcpserver/dhcpserver.h"
 
+// ESP / C Libraries
 #include <stdio.h>
+#include <esp_mac.h>
+#include <esp_wifi.h>
+#include <nvs.h>
+#include <lwip/inet.h>
+#include <dhcpserver/dhcpserver.h>
 
 #define BLINK_SPEED_CONNECTING_MS 200
 #define BLINK_SPEED_SCANNING_MS   400

@@ -4,10 +4,11 @@
 #include "Utilities.h"
 #include "esp_log_custom.h"
 
-#include <HardwareSpecific.h>
-
+// ESP / C Libraries
 #include <esp_heap_caps.h>
-//#include <freertos/task.h>
+
+// External components
+#include <HardwareSpecific.h>
 
 typedef enum {
     STATE_RESET       = 0,

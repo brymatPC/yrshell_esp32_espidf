@@ -1,13 +1,9 @@
 #include "TelnetServer.h"
-
 #include "esp_log_custom.h"
-#include "esp_wifi.h"
 
-#include "lwip/err.h"
-#include "lwip/sockets.h"
-#include "lwip/sys.h"
-#include "lwip/inet.h"
-#include <lwip/netdb.h>
+// ESP / C Libraries
+#include <esp_wifi.h>
+#include <lwip/sockets.h>
 
 static const char* TAG = "TelnetS";
 

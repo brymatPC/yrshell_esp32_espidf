@@ -1,7 +1,10 @@
 #ifndef SYSTEM_STATUS_H_
 #define SYSTEM_STATUS_H_
 
+// ESP / C Libraries
 #include <stdint.h>
+
+// External components
 #include <Sliceable.h>
 #include <IntervalTimer.h>
 

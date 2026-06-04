@@ -1,6 +1,7 @@
 #include "Utilities.h"
 #include "esp_log_custom.h"
 
+// ESP / C Libraries
 #include <esp_chip_info.h>
 #include <esp_partition.h>
 #include <esp_heap_caps.h>
@@ -8,7 +9,6 @@
 #include <esp_mac.h>
 #include <esp_clk_tree.h>
 #include <time.h>
-
 #include <FreeRTOSConfig.h>
 #include <portmacro.h>
 #include <esp_task.h>

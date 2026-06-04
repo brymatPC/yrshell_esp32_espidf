@@ -1,6 +1,7 @@
 #ifndef UPLOAD_DATA_CLIENT_H_
 #define UPLOAD_DATA_CLIENT_H_
 
+// External components
 #include <Sliceable.h>
 
 #define MAX_HEADER_BUF_SIZE 128

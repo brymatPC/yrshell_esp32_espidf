@@ -8,17 +8,17 @@
 #include "VictronDevice.h"
 #include "UploadDataClient.h"
 #include "Utilities.h"
+#include "BleConnection.h"
+#include "esp_log_custom.h"
 
+// ESP / C Libraries
 #include <esp_littlefs.h>
-
-#include <BleConnection.h>
 #include <time.h>
 #include <esp_idf_version.h>
-#include "esp_log_custom.h"
-#include "driver/gpio.h"
-#include "esp_sleep.h"
-#include "nvs.h"
-#include "esp_wifi.h"
+#include <driver/gpio.h>
+#include <esp_sleep.h>
+#include <nvs.h>
+#include <esp_wifi.h>
 
 static const char* TAG = "YRShell";
 

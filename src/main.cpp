@@ -1,18 +1,6 @@
-#include <stdio.h>
-#include "sdkconfig.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include <esp_chip_info.h>
-#include "esp_flash.h"
-#include "esp_err.h"
-#include "esp_log_custom.h"
-#include <nvs_flash.h>
-
-#include <CircularQ.h>
-// #include <IntervalTimer.h>
 #include "AppManager.h"
 #include "LedStripDriver.h"
-#include <BleConnection.h>
+#include "BleConnection.h"
 #include "WifiConnection.h"
 #include "TelnetServer.h"
 #include "YRShellEsp32.h"
@@ -24,8 +12,14 @@
 #include "TempHumidityParser.h"
 #include "Sen66Device.h"
 
-#include "esp_littlefs.h"
-#include "esp_netif_sntp.h"
+// ESP / C Libraries
+#include <stdio.h>
+#include <nvs_flash.h>
+#include <esp_littlefs.h>
+#include <esp_netif_sntp.h>
+
+// External components
+#include <CircularQ.h>
 
 #define YRSHELL_ON_TELNET
 #define LOCAL_LOG_BUFFER_SIZE 8192
@@ -235,6 +229,7 @@ extern "C" void app_main() {
     esp_log_level_set("TelnetS", ESP_LOG_INFO);
     esp_log_level_set("YRShell", ESP_LOG_INFO);
     esp_log_level_set("Perf   ", ESP_LOG_INFO);
+    esp_log_level_set("SDCard ", ESP_LOG_INFO);
 
     // Other libraries
     esp_log_level_set("wifi", ESP_LOG_INFO);

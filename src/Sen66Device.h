@@ -1,7 +1,10 @@
 #ifndef SEN66_DEVICE_H
 #define SEN66_DEVICE_H
 
+// ESP / C Libraries
 #include <stdint.h>
+
+// External components
 #include <Sliceable.h>
 #include <IntervalTimer.h>
 

@@ -1,6 +1,7 @@
 #ifndef TelnetServer_h
 #define TelnetServer_h
 
+// External components
 #include <CircularQ.h>
 #include <IntervalTimer.h>
 

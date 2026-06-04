@@ -1,7 +1,8 @@
 #include "BleConnection.h"
 #include "esp_log_custom.h"
-#include "nvs.h"
-#include "nvs_flash.h"
+
+// ESP / C Libraries
+#include <nvs.h>
 
 static const char* TAG = "BleCon ";
 

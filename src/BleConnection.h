@@ -1,17 +1,11 @@
 #ifndef BleConnection_h
 #define BleConnection_h
 
-//#if defined (ESP32)
-  #include <NimBLEDevice.h>
-  //#include <Preferences.h>
-// #else
-//   #warning "BLE is not supported on the selected target"
-// #endif
-
 #include "BleParser.h"
 
 #include <Sliceable.h>
 #include <IntervalTimer.h>
+#include <NimBLEDevice.h>
 
 #define MAX_BLE_DEVICE_DATA 1
 #define MAX_BLE_DEVICES     4

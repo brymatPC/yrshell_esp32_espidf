@@ -1,10 +1,14 @@
 #ifndef LED_STRIP_DRIVER_H
 #define LED_STRIP_DRIVER_H
 
+#include "LedDriver.h"
+
+// ESP / C Libraries
 #include <stdint.h>
 #include <driver/rmt_tx.h>
+
+// External components
 #include <Sliceable.h>
-#include <LedDriver.h>
 #include <IntervalTimer.h>
 
 // Code copied from esp-idf examples: https://github.com/espressif/esp-idf/blob/release/v6.0/examples/peripherals/rmt/led_strip_simple_encoder/main/led_strip_example_main.c

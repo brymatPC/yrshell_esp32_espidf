@@ -1,12 +1,14 @@
 #include "AppManager.h"
-#include <HardwareSpecific.h>
 #include "Utilities.h"
-
 #include "esp_log_custom.h"
-#include "esp_sleep.h"
-#include "nvs.h"
-#include "nvs_flash.h"
+
+// ESP / C Libraries
+#include <esp_sleep.h>
+#include <nvs.h>
 #include <esp_app_desc.h>
+
+// External components
+#include <HardwareSpecific.h>
 
 static char s_resetUnknownStr[]     = "unknown";
 static char s_resetPowerOnStr[]     = "power-on";
