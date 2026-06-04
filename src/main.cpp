@@ -20,6 +20,7 @@
 
 // External components
 #include <CircularQ.h>
+#include <MultiplexerQ.h>
 
 #define YRSHELL_ON_TELNET
 #define LOCAL_LOG_BUFFER_SIZE 8192
@@ -50,6 +51,8 @@ VictronDevice victronParser;
 TempHumidityParser tempHumParser;
 
 Sen66Device sen66Device;
+
+MultiplexerQ serialMux;
 
 void timeSyncNotification(struct timeval *tv) {
     ESP_LOGI(TAG, "Time synchronization event");
@@ -182,6 +185,9 @@ static void loop(void *pvParameters) {
     sen66Device.setUploadClient(&uploadClient);
     sen66Device.setSdLogger(&sdLogger);
 
+    serialMux.init();
+    serialMux.set(0, nullptr, &m_logQ);
+
     startSntp();
 
     uploadClient.updateWifiStatus(wifiConnected, wifiConnection.getHostIp());
@@ -197,10 +203,12 @@ static void loop(void *pvParameters) {
 
         bool telnetSpaceAvailable = telnetLogServer.spaceAvailable( 32);
         bool serialSpaceAvailable = true;
-        if( m_logQ.valueAvailable() && (telnetSpaceAvailable || serialSpaceAvailable)) {
+        //CircularByteQ *outQ = &m_logQ;
+        CircularByteQ *outQ = serialMux.getOutQ();
+        if( outQ->valueAvailable() && (telnetSpaceAvailable || serialSpaceAvailable)) {
             char c;
-            for( uint8_t i = 0; i < 32 && m_logQ.valueAvailable(); i++) {
-                c = m_logQ.get();
+            for( uint8_t i = 0; i < 32 && outQ->valueAvailable(); i++) {
+                c = outQ->get();
                 if(telnetSpaceAvailable) {
                     telnetLogServer.put( c);
                 }
