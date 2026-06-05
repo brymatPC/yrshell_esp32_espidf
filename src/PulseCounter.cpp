@@ -90,7 +90,7 @@ void PulseCounter::slice() {
         }
         m_startTimeUs = HW_getMicros();
         float freq = calculateFrequency(duration, pulseCount);
-        ESP_LOGI(TAG, "Est freq %.2f, duration %lu, count %d", freq, duration, pulseCount);
+        ESP_LOGI(TAG, "Est freq %.2f, count %d", freq, pulseCount);
     }
 }
 
