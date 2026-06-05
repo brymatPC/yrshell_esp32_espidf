@@ -11,6 +11,7 @@
 #include "Utilities.h"
 #include "TempHumidityParser.h"
 #include "Sen66Device.h"
+#include "PulseCounter.h"
 
 // ESP / C Libraries
 #include <stdio.h>
@@ -31,6 +32,7 @@ static char s_appVersion[] = "0.9.0";
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
 
+static const uint8_t PULSE_IN = 6;
 static const int8_t SD_SCK = 10;
 static const int8_t SD_MISO = 7;
 static const int8_t SD_MOSI = 8;
@@ -53,6 +55,7 @@ VictronDevice victronParser;
 TempHumidityParser tempHumParser;
 
 Sen66Device sen66Device;
+PulseCounter pulseCounter(PULSE_IN);
 
 MultiplexerQ serialMux;
 
@@ -199,6 +202,8 @@ static void loop(void *pvParameters) {
     sen66Device.setUploadClient(&uploadClient);
     sen66Device.setSdLogger(&sdLogger);
 
+    pulseCounter.init();
+
     serialMux.init();
     serialMux.set(0, nullptr, &m_logQ);
     serialMux.set(1, &shell.getInq(), &shell.getOutq());
@@ -267,6 +272,7 @@ extern "C" void app_main() {
     esp_log_level_set("YRShell", ESP_LOG_INFO);
     esp_log_level_set("Perf   ", ESP_LOG_INFO);
     esp_log_level_set("SDCard ", ESP_LOG_INFO);
+    esp_log_level_set("Pulse  ", ESP_LOG_INFO);
     esp_log_level_set("MuxQ   ", ESP_LOG_DEBUG);
 
     // Other libraries
