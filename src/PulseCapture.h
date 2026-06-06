@@ -9,14 +9,16 @@
 class PulseCapture : public Sliceable {
 private:
     uint8_t m_pin;
-    mcpwm_cap_timer_handle_t  m_handle;
+    uint8_t m_group;
+    mcpwm_cap_timer_handle_t m_handle;
+    mcpwm_cap_channel_handle_t m_chanHandle;
     uint32_t m_apbFreq;
     bool m_initialized;
     IntervalTimer m_timer;
 
     float calculateFrequency();
 public:
-    PulseCapture(uint8_t pin);
+    PulseCapture(uint8_t pin, uint8_t group = 0);
     virtual ~PulseCapture();
     virtual const char* sliceName( void) { return "PulseCapture"; }
     void init();
