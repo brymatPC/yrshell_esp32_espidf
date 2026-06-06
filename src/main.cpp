@@ -111,6 +111,9 @@ void preSleepNotification(void) {
     wifiConnection.off();
     sdLogger.stop();
     ledStrip.off();
+    if(sen66Device.enabled()) {
+        sen66Device.save();
+    }
 }
 
 bool sleepReady(void) {
