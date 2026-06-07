@@ -18,6 +18,7 @@
 
 typedef enum {
     STATE_OFF         = 0,
+    STATE_INIT_I2C    = 16,
     STATE_RESET       = 1,
     STATE_RESET_WAIT  = 2,
     STATE_SERIAL_NUM  = 3,
@@ -161,13 +162,15 @@ void Sen66Device::slice( void) {
     switch(m_state) {
         case STATE_OFF:
             if(m_enabled) {
-                m_state = STATE_RESET;
+                m_state = STATE_INIT_I2C;
             }
         break;
-        case STATE_RESET:
+        case STATE_INIT_I2C:
             sensirion_i2c_hal_init();
             sen66_init(SEN66_I2C_ADDR_6B);
-
+            m_state = STATE_RESET;
+        break;
+        case STATE_RESET:
             error = sen66_device_reset();
             if (error != NO_ERROR) {
                 ESP_LOGW(TAG, "error executing device_reset(): %i", error);
