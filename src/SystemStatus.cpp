@@ -20,6 +20,7 @@ typedef enum {
 } sysStatusStates_t;
 
 static const char* TAG = "SysStat";
+const unsigned int SystemStatus::s_UPLOAD_TIME_BOOT_MS = 45000;
 const unsigned int SystemStatus::s_UPLOAD_TIME_MS = 300000;
 char SystemStatus::s_ROUTE[] = "/system";
 
@@ -28,7 +29,7 @@ SystemStatus::SystemStatus() :
     m_sdLogger(nullptr),
     m_state(STATE_RESET)
 {
-    m_timer.setInterval(s_UPLOAD_TIME_MS);
+    m_timer.setInterval(s_UPLOAD_TIME_BOOT_MS);
 }
 void SystemStatus::toJson(char *buf, uint32_t maxLen, bool addLineEnding) {
     if(!buf) return;

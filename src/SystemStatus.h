@@ -15,6 +15,7 @@ class SdLogger;
 
 class SystemStatus : public Sliceable {
 private:
+    static const unsigned int s_UPLOAD_TIME_BOOT_MS;
     static const unsigned int s_UPLOAD_TIME_MS;
     static char s_ROUTE[];
 
