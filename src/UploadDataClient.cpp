@@ -124,7 +124,7 @@ int32_t UploadDataClient::socketConnect() {
     addr_family = AF_INET;
     ip_protocol = IPPROTO_IP;
 
-    m_client =  socket(addr_family, SOCK_STREAM, ip_protocol);
+    m_client = socket(addr_family, SOCK_STREAM, ip_protocol);
     if (m_client < 0) {
         ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
         m_client = -1;
@@ -132,13 +132,16 @@ int32_t UploadDataClient::socketConnect() {
     }
     ESP_LOGI(TAG, "Socket created, connecting to %s:%d", m_ip, m_port);
 
-    int err = connect(m_client, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-    if (err != 0) {
-        ESP_LOGE(TAG, "Socket unable to connect: errno %d", errno);
+    int flags = fcntl(m_client, F_GETFL, 0);
+    fcntl(m_client, F_SETFL, flags | O_NONBLOCK);
+
+    int res = connect(m_client, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+    if (res != 0 && errno != EINPROGRESS) {
+        ESP_LOGE(TAG, "Socket unable to connect: res %d, errno %d", res,errno);
         m_client = -1;
         return -1;
     }
-    ESP_LOGI(TAG, "Successfully connected");
+    ESP_LOGI(TAG, "Connection started");
     return ESP_OK;
 }
 void UploadDataClient::slice() {
@@ -151,19 +154,44 @@ void UploadDataClient::slice() {
         case STATE_IDLE:
             if(m_sendRequest) {
                 m_sendRequest = false;
-                changeState( STATE_CONNECTING);
+                int32_t ret = socketConnect();
+                if(ret != ESP_OK) {
+                    ESP_LOGW(TAG, "Failed to start connect: error %d", ret);
+                } else {
+                    m_connectTimer = HW_getMillis();
+                    changeState( STATE_CONNECTING);
+                }
             }
         break;
         case STATE_CONNECTING:
         {
-            int32_t ret = socketConnect();
-            if(ret != ESP_OK) {
-                ESP_LOGI(TAG, "Connect failed: %d", ret);
-            }
-            if(m_client >= 0) {
-                changeState( STATE_CONNECTED);
-            } else {
-                changeState( STATE_DISCONNECTING);
+            fd_set wset;
+            FD_ZERO(&wset);
+            FD_SET(m_client, &wset);
+
+            struct timeval tv;
+            tv.tv_sec = 0;
+            tv.tv_usec = 500;
+
+            int res = select(m_client + 1, NULL, &wset, NULL, &tv);
+            if (res == 0) {
+                // Timeout occurred
+                if(HW_getMillis() > (m_connectTimer + 2000)) {
+                    ESP_LOGW(TAG, "Timeoud when connecting");
+                    changeState( STATE_DISCONNECTING);
+                }
+            } else if (res > 0) {
+                // Socket is writable, but check for connection errors
+                int err;
+                socklen_t len = sizeof(err);
+                getsockopt(m_client, SOL_SOCKET, SO_ERROR, &err, &len);
+                if (err != 0) {
+                    ESP_LOGW(TAG, "Failed to connect: error %d", err);
+                    changeState( STATE_DISCONNECTING);
+                } else {
+                    ESP_LOGI(TAG, "Connected");
+                    changeState( STATE_CONNECTED);
+                }
             }
         }
         break;
