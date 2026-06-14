@@ -119,6 +119,7 @@ void Sen66Device::loadVoc() {
             ESP_LOGW(TAG, "Failed to set voc algorithm state: %i", error);
         } else {
             ESP_LOGI(TAG, "Restored voc algorithm state");
+            ESP_LOGI(TAG, "VocState: 0x%02X%02X%02X%02X%02X%02X%02X%02X", m_vocState[7], m_vocState[6], m_vocState[5], m_vocState[4], m_vocState[3], m_vocState[2], m_vocState[1], m_vocState[0]);
         }
     }
 }
