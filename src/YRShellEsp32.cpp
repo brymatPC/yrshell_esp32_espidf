@@ -129,6 +129,11 @@ static const FunctionEntry yr8266ShellExtensionFunctions[] = {
 
     { SE_CC_logAdcChannels,         "logAdcChan"},
     { SE_CC_getAdcChannel,          "getAdcChan"},
+    { SE_CC_getAdcVref,             "getAdcVref"},
+    { SE_CC_addAdcChannel,          "addAdcChan"},
+    { SE_CC_setAdcFrequency,        "setAdcFreq"},
+    { SE_CC_startAdc,               "startAdc"},
+    { SE_CC_stopAdc,                "stopAdc"},
 
     { 0, NULL}
 };
@@ -784,6 +789,38 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               } else {
                 pushParameterStack(0xFF);
                 pushParameterStack(0xFF);
+              }
+          break;
+          case SE_CC_getAdcVref:
+              if(m_adcDriver) {
+                uint32_t vref;
+                m_adcDriver->getAdcVref(&vref);
+                pushParameterStack(vref);
+              } else {
+                pushParameterStack(0);
+              }
+          break;
+          case SE_CC_addAdcChannel:
+              t1 = popParameterStack();
+              t2 = popParameterStack();
+              if(m_adcDriver) {
+                m_adcDriver->addChannel(t1, t2);
+              }
+          break;
+          case SE_CC_setAdcFrequency:
+              t1 = popParameterStack();
+              if(m_adcDriver) {
+                m_adcDriver->setFrequency(t1);
+              }
+          break;
+          case SE_CC_startAdc:
+              if(m_adcDriver) {
+                m_adcDriver->start();
+              }
+          break;
+          case SE_CC_stopAdc:
+              if(m_adcDriver) {
+                m_adcDriver->stop();
               }
           break;
           default:

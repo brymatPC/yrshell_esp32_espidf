@@ -123,6 +123,11 @@ typedef enum {
 
     SE_CC_logAdcChannels,
     SE_CC_getAdcChannel,
+    SE_CC_getAdcVref,
+    SE_CC_addAdcChannel,
+    SE_CC_setAdcFrequency,
+    SE_CC_startAdc,
+    SE_CC_stopAdc,
     
     SE_CC_last
 } SE_CC_functions;

@@ -1,14 +1,19 @@
 #include "AdcDriver.h"
+#include "Utilities.h"
 #include "esp_log_custom.h"
 
 #include <esp_adc/adc_continuous.h>
+#include <esp_adc/adc_cali.h>
+#include <esp_adc/adc_cali_scheme.h>
 
 static const char* TAG = "AdcDrv ";
 
 AdcDriver::AdcDriver() :
     m_adcHandle(NULL),
     m_sampleFrequency(ADC_DEFAULT_SAMPLE_FREQ_HZ),
-    m_initialized(false)
+    m_initialized(false),
+    m_numSamplesRead(0),
+    m_curChannel(0)
 {
 
 }
@@ -34,18 +39,116 @@ void AdcDriver::init() {
 
     ESP_LOGI(TAG, "Adc initialized");
     m_initialized = true;
-
-    // adc_continuous_config_t adcChannelConfig = {};
-    // adcChannelConfig.sample_freq_hz = m_sampleFrequency;
-    // adcChannelConfig.conv_mode = ADC_CONV_SINGLE_UNIT_1;
-
-    // ADC_CHANNEL_6;
-    
-    // adc_continuous_io_to_channel();
-
 }
 void AdcDriver::slice() {
+    static bool errorLogged = false;
+    if(m_running) {
+        uint32_t numSamples = 0;
+        esp_err_t ret = adc_continuous_read_parse(m_adcHandle, m_adcBuf, ADC_READ_LEN, &numSamples, 0);
+        if (ret == ESP_OK) {
+            m_numSamplesRead += numSamples;
+        } else if (ret == ESP_ERR_TIMEOUT) {
+            // Data not available yet, just ignore
+        } else {
+            if(!errorLogged) {
+                ESP_LOGE(TAG, "Failed to read and parse adc data, err: %d", ret);
+                errorLogged = true;
+            }
+        }
+    } else {
+        errorLogged = false;
+    }
+}
+int AdcDriver::addChannel(int gpio, uint8_t attenuation) {
+    if(!m_initialized) {
+        ESP_LOGE(TAG, "ADC not initialized, can't add channel");
+        return -1;
+    }
+    if(m_running) {
+        ESP_LOGE(TAG, "ADC running, can't add channel");
+        return -1;
+    }
+    if(m_curChannel >= SOC_ADC_PATT_LEN_MAX) {
+        ESP_LOGE(TAG, "All channels configured, can't add channel");
+        return -1;
+    }
+    if(attenuation > ADC_ATTEN_DB_12) {
+        ESP_LOGE(TAG, "Invalid attenuation: %u, can't add channel", attenuation);
+        return -1;
+    }
 
+    adc_unit_t unit;
+    adc_channel_t chan;
+    esp_err_t err = adc_continuous_io_to_channel(gpio, &unit, &chan);
+    if(err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to get adc channel from io %d, err: %lu", gpio, err);
+        return -1;
+    }
+
+    m_channelConfig[m_curChannel] = {};
+    m_channelConfig[m_curChannel].atten = (adc_atten_t) attenuation;
+    m_channelConfig[m_curChannel].unit = unit;
+    m_channelConfig[m_curChannel].channel = chan;
+    m_channelConfig[m_curChannel].bit_width = ADC_BITWIDTH_12;
+    ESP_LOGI(TAG, "Adc chan %u configured to unit %u, adc channel %u", m_curChannel, unit, chan);
+    m_curChannel++;
+    return ESP_OK;
+}
+void AdcDriver::clearChannels() {
+    if(m_running) {
+        ESP_LOGE(TAG, "ADC running, can't clear channels");
+        return;
+    }
+    m_curChannel = 0;
+}
+void AdcDriver::setFrequency(uint32_t freqHz) {
+    if(m_running) {
+        ESP_LOGE(TAG, "ADC running, can't set frequency");
+    }
+    if(freqHz < SOC_ADC_SAMPLE_FREQ_THRES_LOW || freqHz > SOC_ADC_SAMPLE_FREQ_THRES_HIGH) {
+        ESP_LOGE(TAG, "Frequency %lu is out of range, must be between %lu and %lu", freqHz, SOC_ADC_SAMPLE_FREQ_THRES_LOW, SOC_ADC_SAMPLE_FREQ_THRES_HIGH);
+        return;
+    }
+    m_sampleFrequency = freqHz;
+    ESP_LOGI(TAG, "ADC frequency set to %lu Hz", m_sampleFrequency);
+}
+void AdcDriver::start() {
+    esp_err_t err;
+    if(!m_initialized) return;
+
+    adc_continuous_config_t adcChanConfig = {};
+    adcChanConfig.sample_freq_hz = m_sampleFrequency;
+    // TODO: This needs to change if both units are configured
+    adcChanConfig.conv_mode = ADC_CONV_SINGLE_UNIT_1;
+    adcChanConfig.pattern_num = m_curChannel;
+    adcChanConfig.adc_pattern = m_channelConfig;
+
+    err = adc_continuous_config(m_adcHandle, &adcChanConfig);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to configure adc channels, err: %lu", err);
+        return;
+    }
+
+    err = adc_continuous_start(m_adcHandle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to start adc, err: %lu", err);
+    } else {
+        m_numSamplesRead = 0;
+        m_startTime = HW_getMillis();
+        m_running = true;
+        ESP_LOGI(TAG, "Adc started");
+    }
+}
+void AdcDriver::stop() {
+    if(!m_initialized || !m_running) return;
+    esp_err_t err = adc_continuous_stop(m_adcHandle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to stop adc, err: %lu", err);
+    } else {
+        ESP_LOGI(TAG, "Adc stopped");
+        m_running = false;
+        ESP_LOGI(TAG, "Read %lu samples in %lu ms", m_numSamplesRead, HW_getMillis() - m_startTime);
+    }
 }
 void AdcDriver::logIoNumbers() {
     for(uint8_t i=0; i < SOC_ADC_PERIPH_NUM; i++) {
@@ -67,5 +170,35 @@ void AdcDriver::getAdcLocation(int gpio, uint8_t *adcUnit, uint8_t *adcChan) {
         ESP_LOGW(TAG, "Failed to get adc channel from io %d, err: %lu", gpio, err);
         *adcUnit = 0;
         *adcChan = 0;
+    }
+}
+void AdcDriver::getAdcVref(uint32_t *vrefMv) {
+    esp_err_t err;
+
+    adc_cali_curve_fitting_config_t config = {
+        .unit_id = ADC_UNIT_1,
+        .chan = ADC_CHANNEL_0,
+        .atten = ADC_ATTEN_DB_0,
+        .bitwidth = ADC_BITWIDTH_12
+    };
+    adc_cali_handle_t caliHandle;
+    err = adc_cali_create_scheme_curve_fitting(&config, &caliHandle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create adc calibration handle, err: %lu", err);
+        return;
+    }
+
+    int voltage = 0;
+    err = adc_cali_raw_to_voltage(caliHandle, 4095, &voltage);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to convert adc raw value, err: %lu", err);
+        *vrefMv = 0;
+    } else {
+        *vrefMv = (uint32_t) voltage;
+    }
+
+    err = adc_cali_delete_scheme_curve_fitting(caliHandle);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to delete adc calibration handle, err: %lu", err);
     }
 }
