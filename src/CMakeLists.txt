@@ -13,6 +13,7 @@ idf_component_register( SRCS
                             "SystemStatus.cpp"
                             "TempHumidityParser.cpp"
                             "Sen66Device.cpp"
+                            "AdcDriver.cpp"
                         PRIV_REQUIRES
                             nvs_flash
                             spi_flash
@@ -20,6 +21,7 @@ idf_component_register( SRCS
                             esp_wifi
                             esp_driver_gpio
                             esp_driver_usb_serial_jtag
+                            esp_adc
                             fatfs
                             sdmmc
                             mbedtls

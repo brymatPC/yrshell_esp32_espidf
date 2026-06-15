@@ -9,6 +9,7 @@
 #include "UploadDataClient.h"
 #include "Utilities.h"
 #include "BleConnection.h"
+#include "AdcDriver.h"
 #include "esp_log_custom.h"
 
 // ESP / C Libraries
@@ -125,6 +126,9 @@ static const FunctionEntry yr8266ShellExtensionFunctions[] = {
 
     { SE_CC_upload,               "upload"},
     { SE_CC_setLedStrip,          "setLedStrip"},
+
+    { SE_CC_logAdcChannels,         "logAdcChan"},
+    { SE_CC_getAdcChannel,          "getAdcChan"},
 
     { 0, NULL}
 };
@@ -764,6 +768,24 @@ void YRShellEsp32::executeFunction( uint16_t n) {
                   m_ledStrip->setLed(t1);
               }
             break;
+          case SE_CC_logAdcChannels:
+              if(m_adcDriver) {
+                m_adcDriver->logIoNumbers();
+              }
+          break;
+          case SE_CC_getAdcChannel:
+              t1 = popParameterStack();
+              if(m_adcDriver) {
+                uint8_t unit;
+                uint8_t chan;
+                m_adcDriver->getAdcLocation((uint8_t) t1, &unit, &chan);
+                pushParameterStack(chan);
+                pushParameterStack(unit);
+              } else {
+                pushParameterStack(0xFF);
+                pushParameterStack(0xFF);
+              }
+          break;
           default:
               shellERROR(__FILE__, __LINE__);
               break;

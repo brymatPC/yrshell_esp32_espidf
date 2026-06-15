@@ -11,6 +11,7 @@
 #include "Utilities.h"
 #include "TempHumidityParser.h"
 #include "Sen66Device.h"
+#include "AdcDriver.h"
 
 // ESP / C Libraries
 #include <stdio.h>
@@ -39,6 +40,7 @@ static const int8_t SD_CS = 11;
 CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_logQ;
 CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_telnetLogQ;
 AppManager appMgr(s_appName, s_appVersion);
+AdcDriver adc;
 YRShellEsp32 shell;
 LedStripDriver ledStrip;
 BleConnection bleConnection;
@@ -157,6 +159,7 @@ static void loop(void *pvParameters) {
     appMgr.setPreSleepCallback(preSleepNotification);
     appMgr.setSleepReadyCallback(sleepReady);
     ledStrip.setup();
+    adc.init();
     bleConnection.setup();
     bleConnection.addParser(BleParserTypes::victron, &victronParser);
     bleConnection.addParser(BleParserTypes::tempHumidity, &tempHumParser);
@@ -187,6 +190,7 @@ static void loop(void *pvParameters) {
     shell.setLedStrip(&ledStrip);
     shell.setTelnetLogServer(&telnetLogServer);
     shell.setUploadClient(&uploadClient);
+    shell.setAdcDriver(&adc);
     shell.init();
 
     sdLogger.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);

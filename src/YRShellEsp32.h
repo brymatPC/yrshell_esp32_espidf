@@ -19,6 +19,7 @@ class BleConnection;
 class VictronDevice;
 class TempHumidityParser;
 class Sen66Device;
+class AdcDriver;
 
 typedef enum {
     SE_CC_first = YRSHELL_DICTIONARY_EXTENSION_FUNCTION,
@@ -119,6 +120,9 @@ typedef enum {
 
     SE_CC_upload,
     SE_CC_setLedStrip,
+
+    SE_CC_logAdcChannels,
+    SE_CC_getAdcChannel,
     
     SE_CC_last
 } SE_CC_functions;
@@ -139,6 +143,7 @@ protected:
   TempHumidityParser *m_tempHumParser;
   Sen66Device *m_sen66Device;
   UploadDataClient* m_uploadClient;
+  AdcDriver *m_adcDriver;
   IntervalTimer m_execTimer;
   bool m_lastPromptEnable, m_lastCommandEcho;
   bool m_fileOpen, m_initialFileLoaded;
@@ -167,6 +172,7 @@ public:
   void setTempHumParser(TempHumidityParser *parser) { m_tempHumParser = parser; }
   void setSen66Device(Sen66Device *device) { m_sen66Device = device; }
   void setUploadClient(UploadDataClient *client) { m_uploadClient = client; }
+  void setAdcDriver(AdcDriver *device) { m_adcDriver = device; }
 
   virtual void slice( void);
   void loadFile( const char* fname, bool exec = true);
