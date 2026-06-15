@@ -31,6 +31,8 @@ private:
     CircularQ<uint16_t, 512> m_chan0Buf;
     uint32_t m_chan0Average;
 
+    uint32_t m_numPoolOverflows;
+
     IntervalTimer m_logTimer;
 public:
     AdcDriver();
@@ -49,6 +51,9 @@ public:
     void getAdcLocation(int gpio, uint8_t *adcUnit, uint8_t *adcChan);
     void getAdcVref(uint32_t *vrefMv);
     void createCalibHandle(uint8_t index);
+
+    // ISR Context
+    void poolOverflowISR();
 };
 
 #endif // ADC_DRIVER_H_

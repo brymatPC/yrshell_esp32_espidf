@@ -8,12 +8,20 @@
 
 static const char* TAG = "AdcDrv ";
 
+// NOTE: ISR Context
+static bool poolOverflow(adc_continuous_handle_t handle, const adc_continuous_evt_data_t *edata, void *user_data) {
+    AdcDriver *adcDriver = (AdcDriver *)user_data;
+    adcDriver->poolOverflowISR();
+    return false;
+}
+
 AdcDriver::AdcDriver() :
     m_adcHandle(NULL),
     m_sampleFrequency(ADC_DEFAULT_SAMPLE_FREQ_HZ),
     m_initialized(false),
     m_numSamplesRead(0),
-    m_curChannel(0)
+    m_curChannel(0),
+    m_numPoolOverflows(0)
 {
 
 }
@@ -35,6 +43,15 @@ void AdcDriver::init() {
         ESP_LOGE(TAG, "Failed to create new adc handle, err: %lu", err);
         m_adcHandle = NULL;
         return;
+    }
+
+    adc_continuous_evt_cbs_t callbacks = {
+        .on_conv_done = NULL,
+        .on_pool_ovf = poolOverflow,
+    };
+    err = adc_continuous_register_event_callbacks(m_adcHandle, &callbacks, this);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to register event callbacks, err: %lu", err);
     }
 
     ESP_LOGI(TAG, "Adc initialized");
@@ -151,7 +168,7 @@ void AdcDriver::start() {
         ESP_LOGE(TAG, "Failed to configure adc channels, err: %lu", err);
         return;
     }
-
+    m_numPoolOverflows = 0;
     err = adc_continuous_start(m_adcHandle);
     if(err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start adc, err: %lu", err);
@@ -173,7 +190,7 @@ void AdcDriver::stop() {
     } else {
         ESP_LOGI(TAG, "Adc stopped");
         m_running = false;
-        ESP_LOGI(TAG, "Read %lu samples in %lu ms", m_numSamplesRead, HW_getMillis() - m_startTime);
+        ESP_LOGI(TAG, "Read %lu samples in %lu ms; Num pool overflows %lu", m_numSamplesRead, HW_getMillis() - m_startTime, m_numPoolOverflows);
     }
 }
 void AdcDriver::logIoNumbers() {
@@ -242,4 +259,8 @@ void AdcDriver::createCalibHandle(uint8_t index) {
         ESP_LOGE(TAG, "Failed to create adc calibration handle for index %u, err: %lu", index, err);
         return;
     }
+}
+
+void AdcDriver::poolOverflowISR() {
+    m_numPoolOverflows++;
 }
