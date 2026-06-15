@@ -47,6 +47,17 @@ void AdcDriver::slice() {
         esp_err_t ret = adc_continuous_read_parse(m_adcHandle, m_adcBuf, ADC_READ_LEN, &numSamples, 0);
         if (ret == ESP_OK) {
             m_numSamplesRead += numSamples;
+
+            for(uint16_t i=0; i < numSamples; i++) {
+                if(m_adcBuf[i].valid) {
+                    if(!m_chan0Buf.spaceAvailable()) {
+                        m_chan0Average -= m_chan0Buf.get();
+                    }
+                    m_chan0Buf.put((uint16_t) m_adcBuf[i].raw_data);
+                    m_chan0Average += m_adcBuf[i].raw_data;
+                }
+            }
+
         } else if (ret == ESP_ERR_TIMEOUT) {
             // Data not available yet, just ignore
         } else {
@@ -54,6 +65,17 @@ void AdcDriver::slice() {
                 ESP_LOGE(TAG, "Failed to read and parse adc data, err: %d", ret);
                 errorLogged = true;
             }
+        }
+
+        if(m_logTimer.isNextInterval()) {
+            uint32_t average = m_chan0Average / m_chan0Buf.used();
+            int voltage = 0;
+            esp_err_t err = adc_cali_raw_to_voltage(m_adcCalibHandles[0], average, &voltage);
+            if(err != ESP_OK) {
+                ESP_LOGW(TAG, "Failed to convert raw voltage on index %u, err: %d", 0, err);
+            }
+
+            ESP_LOGI(TAG, "Chan 0 average is %lu counts, %d mV, from %lu values", average, voltage, m_chan0Buf.used());
         }
     } else {
         errorLogged = false;
@@ -90,6 +112,7 @@ int AdcDriver::addChannel(int gpio, uint8_t attenuation) {
     m_channelConfig[m_curChannel].unit = unit;
     m_channelConfig[m_curChannel].channel = chan;
     m_channelConfig[m_curChannel].bit_width = ADC_BITWIDTH_12;
+    createCalibHandle(m_curChannel);
     ESP_LOGI(TAG, "Adc chan %u configured to unit %u, adc channel %u", m_curChannel, unit, chan);
     m_curChannel++;
     return ESP_OK;
@@ -135,6 +158,9 @@ void AdcDriver::start() {
     } else {
         m_numSamplesRead = 0;
         m_startTime = HW_getMillis();
+        m_logTimer.setInterval(2000);
+        m_chan0Average = 0;
+        m_chan0Buf.reset();
         m_running = true;
         ESP_LOGI(TAG, "Adc started");
     }
@@ -200,5 +226,20 @@ void AdcDriver::getAdcVref(uint32_t *vrefMv) {
     err = adc_cali_delete_scheme_curve_fitting(caliHandle);
     if(err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to delete adc calibration handle, err: %lu", err);
+    }
+}
+void AdcDriver::createCalibHandle(uint8_t index) {
+    if(index >= SOC_ADC_PATT_LEN_MAX) return;
+    esp_err_t err;
+    adc_cali_curve_fitting_config_t config = {
+        .unit_id = (adc_unit_t) m_channelConfig[index].unit,
+        .chan = (adc_channel_t) m_channelConfig[index].channel,
+        .atten = (adc_atten_t) m_channelConfig[index].atten,
+        .bitwidth = ADC_BITWIDTH_12
+    };
+    err = adc_cali_create_scheme_curve_fitting(&config, &m_adcCalibHandles[index]);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create adc calibration handle for index %u, err: %lu", index, err);
+        return;
     }
 }
