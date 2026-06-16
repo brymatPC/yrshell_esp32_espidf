@@ -67,11 +67,19 @@ void AdcDriver::slice() {
 
             for(uint16_t i=0; i < numSamples; i++) {
                 if(m_adcBuf[i].valid) {
-                    if(!m_chan0Buf.spaceAvailable()) {
-                        m_chan0Average -= m_chan0Buf.get();
+                    int index = findIndex(m_adcBuf[i].unit, m_adcBuf[i].channel);
+                    if(index < 0) continue;
+                    if(m_adcCalibHandles[index] != NULL) {
+                        int voltage = 0;
+                        ret = adc_cali_raw_to_voltage(m_adcCalibHandles[index], m_adcBuf[i].raw_data, &voltage);
+                        if(ret == ESP_OK) {
+                            if(!m_outputBuf[index].put((uint16_t) voltage)) {
+                                m_numQFullErrors++;
+                            }
+                        }
+                    } else {
+                        m_outputBuf[index].put((uint16_t) m_adcBuf[i].raw_data);
                     }
-                    m_chan0Buf.put((uint16_t) m_adcBuf[i].raw_data);
-                    m_chan0Average += m_adcBuf[i].raw_data;
                 }
             }
 
@@ -85,14 +93,7 @@ void AdcDriver::slice() {
         }
 
         if(m_logTimer.isNextInterval()) {
-            uint32_t average = m_chan0Average / m_chan0Buf.used();
-            int voltage = 0;
-            esp_err_t err = adc_cali_raw_to_voltage(m_adcCalibHandles[0], average, &voltage);
-            if(err != ESP_OK) {
-                ESP_LOGW(TAG, "Failed to convert raw voltage on index %u, err: %d", 0, err);
-            }
-
-            ESP_LOGI(TAG, "Chan 0 average is %lu counts, %d mV, from %lu values", average, voltage, m_chan0Buf.used());
+            ESP_LOGI(TAG, "%lu values, m_numQFullErrors %lu", m_numSamplesRead, m_numQFullErrors);
         }
     } else {
         errorLogged = false;
@@ -174,12 +175,14 @@ void AdcDriver::start() {
         ESP_LOGE(TAG, "Failed to start adc, err: %lu", err);
     } else {
         m_numSamplesRead = 0;
+        m_numQFullErrors = 0;
         m_startTime = HW_getMillis();
         m_logTimer.setInterval(2000);
-        m_chan0Average = 0;
-        m_chan0Buf.reset();
+        for(uint8_t i=0; i < ADC_MAX_CHANNELS; i++) {
+            m_outputBuf[i].reset();
+        }
         m_running = true;
-        ESP_LOGI(TAG, "Adc started");
+        ESP_LOGI(TAG, "Adc started with %u channels", m_curChannel);
     }
 }
 void AdcDriver::stop() {
@@ -192,6 +195,10 @@ void AdcDriver::stop() {
         m_running = false;
         ESP_LOGI(TAG, "Read %lu samples in %lu ms; Num pool overflows %lu", m_numSamplesRead, HW_getMillis() - m_startTime, m_numPoolOverflows);
     }
+}
+CircularQBase<uint16_t> *AdcDriver::getOutQ(uint8_t index) {
+    if(index >= ADC_MAX_CHANNELS) return nullptr;
+    return &m_outputBuf[index];
 }
 void AdcDriver::logIoNumbers() {
     for(uint8_t i=0; i < SOC_ADC_PERIPH_NUM; i++) {
@@ -260,7 +267,14 @@ void AdcDriver::createCalibHandle(uint8_t index) {
         return;
     }
 }
-
+int AdcDriver::findIndex(uint8_t unit, uint8_t channel) {
+    for(uint16_t i=0; i < SOC_ADC_PATT_LEN_MAX; i++) {
+        if(m_channelConfig[i].unit == unit && m_channelConfig[i].channel == channel) {
+            return i;
+        }
+    }
+    return -1;
+}
 void AdcDriver::poolOverflowISR() {
     m_numPoolOverflows++;
 }

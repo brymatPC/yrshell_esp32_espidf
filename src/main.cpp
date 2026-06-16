@@ -12,6 +12,7 @@
 #include "TempHumidityParser.h"
 #include "Sen66Device.h"
 #include "AdcDriver.h"
+#include "FrequencyEstimate.h"
 
 // ESP / C Libraries
 #include <stdio.h>
@@ -55,6 +56,7 @@ VictronDevice victronParser;
 TempHumidityParser tempHumParser;
 
 Sen66Device sen66Device;
+FrequencyEstimate freqEstimator;
 
 MultiplexerQ serialMux;
 
@@ -206,6 +208,8 @@ static void loop(void *pvParameters) {
     sen66Device.setUploadClient(&uploadClient);
     sen66Device.setSdLogger(&sdLogger);
 
+    freqEstimator.setInQ(adc.getOutQ(0));
+
     serialMux.init();
     serialMux.set(0, nullptr, &m_logQ);
     serialMux.set(1, &shell.getInq(), &shell.getOutq());
@@ -273,8 +277,14 @@ extern "C" void app_main() {
     esp_log_level_set("TelnetS", ESP_LOG_INFO);
     esp_log_level_set("YRShell", ESP_LOG_INFO);
     esp_log_level_set("Perf   ", ESP_LOG_INFO);
-    esp_log_level_set("SDCard ", ESP_LOG_INFO);
-    esp_log_level_set("MuxQ   ", ESP_LOG_DEBUG);
+    esp_log_level_set("SDCard ", ESP_LOG_WARN);
+    esp_log_level_set("MuxQ   ", ESP_LOG_WARN);
+    esp_log_level_set("Sen66  ", ESP_LOG_WARN);
+    esp_log_level_set("Victron", ESP_LOG_WARN);
+    esp_log_level_set("THParse", ESP_LOG_WARN);
+    esp_log_level_set("Upload ", ESP_LOG_WARN);
+    esp_log_level_set("AdcDrv ", ESP_LOG_INFO);
+    esp_log_level_set("FreqEst", ESP_LOG_INFO);
 
     // Other libraries
     esp_log_level_set("wifi", ESP_LOG_INFO);

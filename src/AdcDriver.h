@@ -12,6 +12,7 @@
 #define ADC_DEFAULT_SAMPLE_FREQ_HZ (SOC_ADC_SAMPLE_FREQ_THRES_LOW)
 #define ADC_MAX_CHANNELS    (8)
 
+typedef CircularQBase<uint16_t> AdcQ;
 
 class AdcDriver : public Sliceable  {
 private:
@@ -28,12 +29,15 @@ private:
 
     adc_continuous_data_t m_adcBuf[ADC_READ_LEN];
 
-    CircularQ<uint16_t, 512> m_chan0Buf;
-    uint32_t m_chan0Average;
+    CircularQ<uint16_t, 2048> m_outputBuf[ADC_MAX_CHANNELS];
 
     uint32_t m_numPoolOverflows;
+    uint32_t m_numQFullErrors;
 
     IntervalTimer m_logTimer;
+
+    void createCalibHandle(uint8_t index);
+    int findIndex(uint8_t unit, uint8_t channel);
 public:
     AdcDriver();
     virtual ~AdcDriver();
@@ -47,10 +51,11 @@ public:
     void start();
     void stop();
 
+    CircularQBase<uint16_t> * getOutQ(uint8_t index);
+
     void logIoNumbers();
     void getAdcLocation(int gpio, uint8_t *adcUnit, uint8_t *adcChan);
     void getAdcVref(uint32_t *vrefMv);
-    void createCalibHandle(uint8_t index);
 
     // ISR Context
     void poolOverflowISR();

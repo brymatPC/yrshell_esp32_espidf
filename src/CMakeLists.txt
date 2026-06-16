@@ -14,6 +14,7 @@ idf_component_register( SRCS
                             "TempHumidityParser.cpp"
                             "Sen66Device.cpp"
                             "AdcDriver.cpp"
+                            "FrequencyEstimate.cpp"
                         PRIV_REQUIRES
                             nvs_flash
                             spi_flash
