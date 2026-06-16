@@ -159,7 +159,7 @@ public:
             s2 = m_nextQ->getLinearWriteBufferSize();
             s1 = s1 <= s2 ? s1 : s2;
             if( s1 > 0) {
-                memcpy(m_nextQ->getLinearWriteBuffer(), getLinearReadBuffer(), s1);
+                memcpy(m_nextQ->getLinearWriteBuffer(), getLinearReadBuffer(), s1 * sizeof(TYPE));
                 atomic_thread_fence( std::memory_order_release);
                 drop( s1);
                 m_nextQ->append( s1);
@@ -170,7 +170,7 @@ public:
             s2 = m_previousQ->getLinearReadBufferSize();
             s1 = s1 <= s2 ? s1 : s2;
             if( s1 > 0) {
-                memcpy(getLinearWriteBuffer(), m_previousQ->getLinearReadBuffer(), s1);
+                memcpy(getLinearWriteBuffer(), m_previousQ->getLinearReadBuffer(), s1 * sizeof(TYPE));
                 atomic_thread_fence( std::memory_order_release);
                 m_previousQ->drop( s1);
                 append( s1);
