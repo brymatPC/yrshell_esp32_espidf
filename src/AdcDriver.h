@@ -8,11 +8,13 @@
 #include <esp_adc/adc_cali.h>
 
 #define ADC_MAX_BUFFER_SIZE (1024)
-#define ADC_READ_LEN        (128)
+#define ADC_READ_LEN        (32)
 #define ADC_DEFAULT_SAMPLE_FREQ_HZ (SOC_ADC_SAMPLE_FREQ_THRES_LOW)
 #define ADC_MAX_CHANNELS    (8)
 
 typedef CircularQBase<uint16_t> AdcQ;
+
+class SdLogger;
 
 class AdcDriver : public Sliceable  {
 private:
@@ -34,7 +36,11 @@ private:
     uint32_t m_numPoolOverflows;
     uint32_t m_numQFullErrors;
 
+    char m_dataFilename[128];
+    bool m_writeToFile;
+    int m_fileDescriptor;
     IntervalTimer m_logTimer;
+    SdLogger* m_sdLogger;
 
     void createCalibHandle(uint8_t index);
     int findIndex(uint8_t unit, uint8_t channel);
@@ -44,11 +50,12 @@ public:
     virtual const char* sliceName( void) { return "AdcDriver"; }
     void init();
     virtual void slice( void);
+    void setSdLogger(SdLogger *sdLogger) {m_sdLogger = sdLogger; }
 
     int addChannel(int gpio, uint8_t attenuation);
     void clearChannels();
     void setFrequency(uint32_t freqHz);
-    void start();
+    void start(bool writeToFile = false);
     void stop();
 
     CircularQBase<uint16_t> * getOutQ(uint8_t index);

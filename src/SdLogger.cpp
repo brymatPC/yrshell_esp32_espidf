@@ -86,7 +86,7 @@ void SdLogger::begin(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs) {
         return;
     }
     ESP_LOGI(TAG, "Filesystem mounted");
-    //sdmmc_card_print_info(stdout, card);
+
     logSdCardStatus(card);
     m_card = card;
     m_connected = true;
@@ -112,7 +112,14 @@ void SdLogger::loop() {
         }
     }
 }
+void SdLogger::logSdCardStatus() {
+    if(m_card) {
+        logSdCardStatus(m_card);
+    } else {
+        ESP_LOGW(TAG, "No card detected");
+    }
 
+}
 void SdLogger::logSdCardStatus(sdmmc_card_t *card) {
 
     esp_err_t err = sdmmc_get_status(card);
@@ -214,6 +221,22 @@ void SdLogger::log(const char *filePrefix, const char *record, bool createNew) {
     size_t numWritten = fwrite((uint8_t *)record, sizeof(char), strlen(record), file);
     fclose(file);
     ESP_LOGI(TAG, "Wrote %lu bytes", numWritten);
+}
+bool SdLogger::getFilename(const char *filePrefix, const char *fileExt, char *filename, bool createNew) {
+    if(!m_connected) return false;
+
+    char baseDir[128];
+    snprintf(baseDir, 128, "%s/", MOUNT_POINT);
+
+    long fileNumber = findLargestNumberInFilenames(baseDir, filePrefix);
+    if(fileNumber < 0) {
+        // Failed to access SD card
+        return false;
+    } else if(fileNumber == 0) {
+        fileNumber = 1;
+    }
+    snprintf(filename, 128, "%s/%s_%ld.%s", MOUNT_POINT, filePrefix, fileNumber, fileExt);
+    return true;
 }
 
 long SdLogger::findLargestNumberInFilenames(const char* dir, const char* prefix) {

@@ -10,6 +10,7 @@
 #include "Utilities.h"
 #include "BleConnection.h"
 #include "AdcDriver.h"
+#include "SdLogger.h"
 #include "esp_log_custom.h"
 
 // ESP / C Libraries
@@ -123,6 +124,7 @@ static const FunctionEntry yr8266ShellExtensionFunctions[] = {
     { SE_CC_heapPerf,             "heapPerf"},
     { SE_CC_curTime,              "curTime"},
 		{ SE_CC_setTime,              "setTime"},
+    { SE_CC_sdCardInfo,           "sdInfo"},
 
     { SE_CC_upload,               "upload"},
     { SE_CC_setLedStrip,          "setLedStrip"},
@@ -762,6 +764,11 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               settimeofday(&tv, NULL);
             }
             break;
+          case SE_CC_sdCardInfo:
+            if(m_sdLogger) {
+              m_sdLogger->logSdCardStatus();
+            }
+            break;
           case SE_CC_upload:
             if(m_uploadClient) {
               m_uploadClient->sendFile(s_testRoute, s_uploadData, strlen(s_uploadData));
@@ -814,8 +821,9 @@ void YRShellEsp32::executeFunction( uint16_t n) {
               }
           break;
           case SE_CC_startAdc:
+              t1 = popParameterStack();
               if(m_adcDriver) {
-                m_adcDriver->start();
+                m_adcDriver->start(t1 == 1);
               }
           break;
           case SE_CC_stopAdc:

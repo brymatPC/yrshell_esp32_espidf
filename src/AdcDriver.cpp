@@ -1,10 +1,12 @@
 #include "AdcDriver.h"
 #include "Utilities.h"
 #include "esp_log_custom.h"
+#include "SdLogger.h"
 
 #include <esp_adc/adc_continuous.h>
 #include <esp_adc/adc_cali.h>
 #include <esp_adc/adc_cali_scheme.h>
+#include <fcntl.h>
 
 static const char* TAG = "AdcDrv ";
 
@@ -21,7 +23,10 @@ AdcDriver::AdcDriver() :
     m_initialized(false),
     m_numSamplesRead(0),
     m_curChannel(0),
-    m_numPoolOverflows(0)
+    m_numPoolOverflows(0),
+    m_writeToFile(false),
+    m_fileDescriptor(-1),
+    m_sdLogger(nullptr)
 {
 
 }
@@ -58,12 +63,15 @@ void AdcDriver::init() {
     m_initialized = true;
 }
 void AdcDriver::slice() {
+    static char fileBuf[512];
+    static char voltStr[16];
     static bool errorLogged = false;
     if(m_running) {
         uint32_t numSamples = 0;
         esp_err_t ret = adc_continuous_read_parse(m_adcHandle, m_adcBuf, ADC_READ_LEN, &numSamples, 0);
         if (ret == ESP_OK) {
             m_numSamplesRead += numSamples;
+            fileBuf[0] = '\0';
 
             for(uint16_t i=0; i < numSamples; i++) {
                 if(m_adcBuf[i].valid) {
@@ -73,14 +81,24 @@ void AdcDriver::slice() {
                         int voltage = 0;
                         ret = adc_cali_raw_to_voltage(m_adcCalibHandles[index], m_adcBuf[i].raw_data, &voltage);
                         if(ret == ESP_OK) {
-                            if(!m_outputBuf[index].put((uint16_t) voltage)) {
-                                m_numQFullErrors++;
+                            if(m_writeToFile) {
+                                //fprintf(file, "%d\r\n", voltage);
+                                snprintf(voltStr, 16, "%d\r\n", voltage);
+                                strcat(fileBuf, voltStr);
+                            } else {
+                                if(!m_outputBuf[index].put((uint16_t) voltage)) {
+                                    m_numQFullErrors++;
+                                }
                             }
                         }
                     } else {
                         m_outputBuf[index].put((uint16_t) m_adcBuf[i].raw_data);
                     }
                 }
+            }
+
+            if(m_writeToFile && m_fileDescriptor > 0) {
+                write(m_fileDescriptor, fileBuf, strlen(fileBuf));
             }
 
         } else if (ret == ESP_ERR_TIMEOUT) {
@@ -153,9 +171,24 @@ void AdcDriver::setFrequency(uint32_t freqHz) {
     m_sampleFrequency = freqHz;
     ESP_LOGI(TAG, "ADC frequency set to %lu Hz", m_sampleFrequency);
 }
-void AdcDriver::start() {
+void AdcDriver::start(bool writeToFile) {
     esp_err_t err;
     if(!m_initialized) return;
+    m_writeToFile = writeToFile;
+    if(m_writeToFile && m_sdLogger) {
+        if(m_sdLogger->getFilename("adc", "txt", m_dataFilename, true)) {
+            ESP_LOGI(TAG, "Writing to file '%s'", m_dataFilename);
+        } else {
+            ESP_LOGW(TAG, "Failed to get filename, can't write to file");
+            m_writeToFile = false;
+        }
+        if(m_writeToFile) {
+            m_fileDescriptor = open(m_dataFilename, O_RDWR | O_CREAT, 0);
+            if(m_fileDescriptor < 0) {
+                m_writeToFile = false;
+            }
+        }
+    }
 
     adc_continuous_config_t adcChanConfig = {};
     adcChanConfig.sample_freq_hz = m_sampleFrequency;
@@ -187,6 +220,12 @@ void AdcDriver::start() {
 }
 void AdcDriver::stop() {
     if(!m_initialized || !m_running) return;
+
+    if(m_fileDescriptor >= 0) {
+        close(m_fileDescriptor);
+        m_fileDescriptor = -1;
+    }
+
     esp_err_t err = adc_continuous_stop(m_adcHandle);
     if(err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to stop adc, err: %lu", err);

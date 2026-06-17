@@ -193,6 +193,7 @@ static void loop(void *pvParameters) {
     shell.setTelnetLogServer(&telnetLogServer);
     shell.setUploadClient(&uploadClient);
     shell.setAdcDriver(&adc);
+    shell.setSdLogger(&sdLogger);
     shell.init();
 
     sdLogger.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
@@ -208,6 +209,7 @@ static void loop(void *pvParameters) {
     sen66Device.setUploadClient(&uploadClient);
     sen66Device.setSdLogger(&sdLogger);
 
+    adc.setSdLogger(&sdLogger);
     freqEstimator.setInQ(adc.getOutQ(0));
 
     serialMux.init();
@@ -268,16 +270,16 @@ extern "C" void app_main() {
 
     esp_log_set_vprintf(custom_log_handler);
 
-    esp_log_level_set("*", ESP_LOG_INFO);
+    esp_log_level_set("*", ESP_LOG_INFO); 
     esp_log_level_set("Main   ", ESP_LOG_INFO);
     esp_log_level_set("AppMgr ", ESP_LOG_INFO);
     esp_log_level_set("LedStr ", ESP_LOG_INFO);
     esp_log_level_set("BleCon ", ESP_LOG_INFO);
-    esp_log_level_set("WifiCon", ESP_LOG_INFO);
-    esp_log_level_set("TelnetS", ESP_LOG_INFO);
+    esp_log_level_set("WifiCon", ESP_LOG_WARN);
+    esp_log_level_set("TelnetS", ESP_LOG_WARN);
     esp_log_level_set("YRShell", ESP_LOG_INFO);
     esp_log_level_set("Perf   ", ESP_LOG_INFO);
-    esp_log_level_set("SDCard ", ESP_LOG_WARN);
+    esp_log_level_set("SDCard ", ESP_LOG_INFO);
     esp_log_level_set("MuxQ   ", ESP_LOG_WARN);
     esp_log_level_set("Sen66  ", ESP_LOG_WARN);
     esp_log_level_set("Victron", ESP_LOG_WARN);
@@ -287,7 +289,8 @@ extern "C" void app_main() {
     esp_log_level_set("FreqEst", ESP_LOG_INFO);
 
     // Other libraries
-    esp_log_level_set("wifi", ESP_LOG_INFO);
+    esp_log_level_set("wifi", ESP_LOG_WARN);
+    esp_log_level_set("wifi_init", ESP_LOG_WARN);
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
     esp_log_level_set("sensirion_i2c_hal", ESP_LOG_WARN);
 

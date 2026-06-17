@@ -20,6 +20,7 @@ class VictronDevice;
 class TempHumidityParser;
 class Sen66Device;
 class AdcDriver;
+class SdLogger;
 
 typedef enum {
     SE_CC_first = YRSHELL_DICTIONARY_EXTENSION_FUNCTION,
@@ -117,6 +118,7 @@ typedef enum {
     SE_CC_heapPerf,
     SE_CC_curTime,
     SE_CC_setTime,
+    SE_CC_sdCardInfo,
 
     SE_CC_upload,
     SE_CC_setLedStrip,
@@ -149,6 +151,7 @@ protected:
   Sen66Device *m_sen66Device;
   UploadDataClient* m_uploadClient;
   AdcDriver *m_adcDriver;
+  SdLogger *m_sdLogger;
   IntervalTimer m_execTimer;
   bool m_lastPromptEnable, m_lastCommandEcho;
   bool m_fileOpen, m_initialFileLoaded;
@@ -178,6 +181,7 @@ public:
   void setSen66Device(Sen66Device *device) { m_sen66Device = device; }
   void setUploadClient(UploadDataClient *client) { m_uploadClient = client; }
   void setAdcDriver(AdcDriver *device) { m_adcDriver = device; }
+  void setSdLogger(SdLogger *device) { m_sdLogger = device; }
 
   virtual void slice( void);
   void loadFile( const char* fname, bool exec = true);

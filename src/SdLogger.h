@@ -18,8 +18,11 @@ public:
     void begin(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs);
     void stop();
     void loop();
+    void logSdCardStatus();
 
     void log(const char *filePrefix, const char *record, bool createNew = false);
+
+    bool getFilename(const char *filePrefix, const char *fileExt, char *filename, bool createNew = false);
 
 private:
     uint8_t m_cs;
