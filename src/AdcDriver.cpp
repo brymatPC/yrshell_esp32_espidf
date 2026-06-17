@@ -82,8 +82,8 @@ void AdcDriver::slice() {
                         ret = adc_cali_raw_to_voltage(m_adcCalibHandles[index], m_adcBuf[i].raw_data, &voltage);
                         if(ret == ESP_OK) {
                             if(m_writeToFile) {
-                                //fprintf(file, "%d\r\n", voltage);
                                 snprintf(voltStr, 16, "%d\r\n", voltage);
+                                // TODO: Improve this to avoid buffer overflows
                                 strcat(fileBuf, voltStr);
                             } else {
                                 if(!m_outputBuf[index].put((uint16_t) voltage)) {

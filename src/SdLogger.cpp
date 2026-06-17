@@ -253,6 +253,10 @@ bool SdLogger::getFilename(const char *filePrefix, const char *fileExt, char *fi
         return false;
     } else if(fileNumber == 0) {
         fileNumber = 1;
+    } else {
+        if(createNew) {
+            fileNumber++;
+        }
     }
     snprintf(filename, 128, "%s/%s_%ld.%s", MOUNT_POINT, filePrefix, fileNumber, fileExt);
     return true;
