@@ -6,18 +6,20 @@
 #include <sdmmc_cmd.h>
 
 // External components
+#include <Sliceable.h>
 #include <IntervalTimer.h>
 
 #define SD_CONN_CHECK_MS (30000)
 #define SD_FILE_MAX_SIZE (1024 * 1024)
 
-class SdLogger {
+class SdLogger : public Sliceable {
 public:
     SdLogger();
+    virtual const char* sliceName( void) { return "SdLogger"; }
 
-    void begin(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs);
+    void init(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs);
     void stop();
-    void loop();
+    void slice();
     void logSdCardStatus();
 
     void log(const char *filePrefix, const char *record, bool createNew = false);
@@ -29,6 +31,7 @@ private:
     IntervalTimer m_timer;
     bool m_connected;
     sdmmc_card_t *m_card;
+    void mount();
     long findLargestNumberInFilenames(const char* dir, const char* prefix);
     void logSdCardStatus(sdmmc_card_t *card);
 };

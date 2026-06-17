@@ -196,7 +196,7 @@ static void loop(void *pvParameters) {
     shell.setSdLogger(&sdLogger);
     shell.init();
 
-    sdLogger.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+    sdLogger.init(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
     
     systemStatus.setUploadClient(&uploadClient);
     systemStatus.setSdLogger(&sdLogger);
