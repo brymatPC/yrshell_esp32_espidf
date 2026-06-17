@@ -142,8 +142,8 @@ bool mountLittleFs() {
 
 void configureUsbSerial() {
     usb_serial_jtag_driver_config_t usb_serial_jtag_config = {
-        .tx_buffer_size = 1024,
-        .rx_buffer_size = 1024,
+        .tx_buffer_size = 2048,
+        .rx_buffer_size = 2048,
     };
     usb_serial_jtag_driver_install(&usb_serial_jtag_config);
 }
@@ -258,6 +258,8 @@ extern "C" void app_main() {
 
     ESP_ERROR_CHECK(nvs_flash_init());
 
+    configureUsbSerial();
+
     esp_log_set_vprintf(custom_log_handler);
 
     esp_log_level_set("*", ESP_LOG_INFO);
@@ -280,8 +282,6 @@ extern "C" void app_main() {
     ESP_LOGI(TAG, "Main Startup");
 
     mountLittleFs();
-
-    configureUsbSerial();
 
     uint32_t ret = xTaskCreatePinnedToCore(&loop, "loop", 4096, NULL, 5, &xHandle, 1);
     ESP_LOGI(TAG, "Task create returned %lu", ret);
