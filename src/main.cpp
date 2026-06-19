@@ -267,15 +267,22 @@ extern "C" void app_main() {
     esp_log_level_set("AppMgr ", ESP_LOG_INFO);
     esp_log_level_set("LedStr ", ESP_LOG_INFO);
     esp_log_level_set("BleCon ", ESP_LOG_INFO);
-    esp_log_level_set("WifiCon", ESP_LOG_INFO);
-    esp_log_level_set("TelnetS", ESP_LOG_INFO);
+    esp_log_level_set("WifiCon", ESP_LOG_WARN);
+    esp_log_level_set("TelnetS", ESP_LOG_WARN);
     esp_log_level_set("YRShell", ESP_LOG_INFO);
     esp_log_level_set("Perf   ", ESP_LOG_INFO);
     esp_log_level_set("SDCard ", ESP_LOG_INFO);
-    esp_log_level_set("MuxQ   ", ESP_LOG_DEBUG);
+    esp_log_level_set("MuxQ   ", ESP_LOG_WARN);
+
+    // Optional Modules
+    esp_log_level_set("Sen66  ", ESP_LOG_WARN);
+    esp_log_level_set("Victron", ESP_LOG_WARN);
+    esp_log_level_set("THParse", ESP_LOG_WARN);
+    esp_log_level_set("Upload ", ESP_LOG_WARN);
 
     // Other libraries
-    esp_log_level_set("wifi", ESP_LOG_INFO);
+    esp_log_level_set("wifi", ESP_LOG_WARN);
+    esp_log_level_set("wifi_init", ESP_LOG_WARN);
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
     esp_log_level_set("sensirion_i2c_hal", ESP_LOG_WARN);
 
