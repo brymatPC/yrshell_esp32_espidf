@@ -7,22 +7,13 @@
 
 static const char* TAG = "PulseC ";
 
-#define MAX_NUM_CAPTURES 32
-static uint32_t m_captures[2][MAX_NUM_CAPTURES];
-static uint32_t m_captureIndex[2];
-static uint32_t m_numCaptures[2];
-
 static bool captureCallback(mcpwm_cap_channel_handle_t cap_chan, const mcpwm_capture_event_data_t *edata, void *user_data) {
     static uint32_t lastCapture = 0;
     if(edata->cap_edge == MCPWM_CAP_EDGE_POS) {
-        uint8_t group = *((uint8_t *) user_data);
-        m_captures[group][m_captureIndex[group]] = edata->cap_value - lastCapture;
-        lastCapture = edata->cap_value;
-        m_captureIndex[group]++;
-        if(m_captureIndex[group] >= MAX_NUM_CAPTURES) {
-            m_captureIndex[group] = 0;
+        if(user_data) {
+            PulseCapture *pulseCapture = ((PulseCapture *) user_data);
+            pulseCapture->captureCallbackIsr(edata->cap_value);
         }
-        m_numCaptures[group]++;
     }
     return true;
 }
@@ -32,18 +23,13 @@ PulseCapture::PulseCapture(uint8_t pin, uint8_t group) :
     m_group(group),
     m_handle(NULL),
     m_apbFreq(1),
-    m_initialized(false)
+    m_initialized(false),
+    m_lastCapture(0),
+    m_captureIndex(0),
+    m_numCaptures(0)
 {
+    memset(m_captures, 0, MAX_NUM_CAPTURES * sizeof(uint32_t));
     m_timer.setInterval(5000);
-
-    for(uint32_t i=0; i < MAX_NUM_CAPTURES; i++) {
-        m_captures[0][i] = 0;
-        m_captures[1][i] = 0;
-    }
-    m_captureIndex[0] = 0;
-    m_captureIndex[1] = 0;
-    m_numCaptures[0] = 0;
-    m_numCaptures[1] = 0;
 }
 PulseCapture::~PulseCapture() {}
 void PulseCapture::init() {
@@ -77,7 +63,7 @@ void PulseCapture::init() {
     mcpwm_capture_event_callbacks_t cbs = {
         .on_cap = captureCallback,
     };
-    err = mcpwm_capture_channel_register_event_callbacks(m_chanHandle, &cbs, &m_group);
+    err = mcpwm_capture_channel_register_event_callbacks(m_chanHandle, &cbs, this);
     if(err != ESP_OK) {
         ESP_LOGW(TAG, "Failed to register callback, error %lu", err);
         return;
@@ -106,19 +92,28 @@ void PulseCapture::slice() {
     if(!m_initialized) return;
     if(m_timer.isNextInterval()) {
         float freq = calculateFrequency();
-        uint32_t numCaptures = m_numCaptures[m_group];
-        m_numCaptures[m_group] = 0;
+        uint32_t numCaptures = m_numCaptures;
+        m_numCaptures = 0;
         ESP_LOGI(TAG, "%d - Est freq %.2f, numCaptures %d", m_group, freq, numCaptures);
-        
     }
 }
 
 float PulseCapture::calculateFrequency() {
     uint32_t averageInterval = 0;
     for(uint32_t i=0; i < MAX_NUM_CAPTURES; i++) {
-        averageInterval += m_captures[m_group][i];
+        averageInterval += m_captures[i];
     }
     float average = ((float) averageInterval) / ((float) MAX_NUM_CAPTURES);
     float clkFreq = (float) m_apbFreq;
     return clkFreq / average;
+}
+
+void PulseCapture::captureCallbackIsr(uint32_t capValue) {
+    m_captures[m_captureIndex] = capValue - m_lastCapture;
+    m_lastCapture = capValue;
+    m_captureIndex++;
+    if(m_captureIndex >= MAX_NUM_CAPTURES) {
+        m_captureIndex = 0;
+    }
+    m_numCaptures++;
 }

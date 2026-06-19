@@ -6,6 +6,8 @@
 #include <IntervalTimer.h>
 #include <Sliceable.h>
 
+#define MAX_NUM_CAPTURES 32
+
 class PulseCapture : public Sliceable {
 private:
     uint8_t m_pin;
@@ -16,6 +18,11 @@ private:
     bool m_initialized;
     IntervalTimer m_timer;
 
+    uint32_t m_lastCapture;
+    uint32_t m_captures[MAX_NUM_CAPTURES];
+    uint32_t m_captureIndex;
+    uint32_t m_numCaptures;
+
     float calculateFrequency();
 public:
     PulseCapture(uint8_t pin, uint8_t group = 0);
@@ -23,6 +30,9 @@ public:
     virtual const char* sliceName( void) { return "PulseCapture"; }
     void init();
     virtual void slice( void);
+
+    // ISR Context
+    void captureCallbackIsr(uint32_t capValue);
 };
 
 #endif //PULSE_CAPTURE_H_
