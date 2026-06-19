@@ -20,19 +20,11 @@ SdLogger::SdLogger() :
     m_timer.setInterval(SD_CONN_CHECK_MS);
 }
 
-void SdLogger::begin(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs) {
-     esp_err_t ret;
-
-    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
-        .format_if_mount_failed = false,
-        .max_files = 5,
-        .allocation_unit_size = 16 * 1024,
-        .disk_status_check_enable = false,
-        .use_one_fat = false,
-    };
-    sdmmc_card_t *card;
-    const char mount_point[] = MOUNT_POINT;
+void SdLogger::init(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs) {
+    esp_err_t ret;
     ESP_LOGI(TAG, "Initializing SD card");
+
+    m_cs = cs;
 
     // Use settings defined above to initialize SD card and mount FAT filesystem.
     // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
@@ -69,8 +61,36 @@ void SdLogger::begin(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs) {
         return;
     }
 
+    mount();
+}
+void SdLogger::mount() {
+    esp_err_t ret;
+
+    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+        .format_if_mount_failed = false,
+        .max_files = 5,
+        .allocation_unit_size = 16 * 1024,
+        .disk_status_check_enable = false,
+        .use_one_fat = false,
+    };
+    sdmmc_card_t *card;
+    const char mount_point[] = MOUNT_POINT;
+    ESP_LOGI(TAG, "Initializing SD card");
+
+    // Use settings defined above to initialize SD card and mount FAT filesystem.
+    // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
+    // Please check its source code and implement error recovery when developing
+    // production applications.
+    ESP_LOGI(TAG, "Using SPI peripheral");
+
+    // By default, SD card frequency is initialized to SDMMC_FREQ_DEFAULT (20MHz)
+    // For setting a specific frequency, use host.max_freq_khz (range 400kHz - 20MHz for SDSPI)
+    // Example: for fixed frequency of 10MHz, use host.max_freq_khz = 10000;
+    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+    host.unaligned_multi_block_rw_max_chunk_size = 8;
+
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
-    slot_config.gpio_cs = (gpio_num_t) cs;
+    slot_config.gpio_cs = (gpio_num_t) m_cs;
     slot_config.host_id = (spi_host_device_t) host.slot;
 
     ESP_LOGI(TAG, "Mounting filesystem");
@@ -100,15 +120,15 @@ void SdLogger::stop() {
     m_connected = false;
 }
 
-void SdLogger::loop() {
+void SdLogger::slice() {
     if(m_timer.isNextInterval()) {
         ESP_LOGI(TAG, "SD Connection check");
         if(!m_connected) {
             ESP_LOGI(TAG, "SD card not connected, retrying...");
-            // TODO: Re-add SDCard re-connection attempt
-            // if(begin(m_cs, sd_spi)) {
+            mount();
+            if(!m_connected) {
                  ESP_LOGW(TAG, "SD card not found");
-            // }
+            }
         }
     }
 }
@@ -170,11 +190,7 @@ void SdLogger::log(const char *filePrefix, const char *record, bool createNew) {
     long fileNumber = findLargestNumberInFilenames(baseDir, filePrefix);
     if(fileNumber < 0) {
         // Failed to access SD card, unmount it and try again later
-        esp_err_t err = esp_vfs_fat_sdcard_unmount(MOUNT_POINT, m_card);
-        if(err != ESP_OK) {
-            ESP_LOGW(TAG, "Failed to unmount sdcard, err: %lu", err);
-        }
-        m_connected = false;
+        stop();
     } else if(fileNumber == 0) {
         fileNumber = 1;
         snprintf(filename, 128, "%s/%s_%ld.json", MOUNT_POINT, filePrefix, fileNumber);
@@ -183,6 +199,7 @@ void SdLogger::log(const char *filePrefix, const char *record, bool createNew) {
             ESP_LOGI(TAG, "File not found, created a new file; %s", filename);
         } else {
             ESP_LOGW(TAG, "Failed to create a new file; %s", filename);
+            stop();
         }
     } else {
         snprintf(filename, 128, "%s/%s_%ld.json", MOUNT_POINT, filePrefix, fileNumber);
@@ -198,12 +215,14 @@ void SdLogger::log(const char *filePrefix, const char *record, bool createNew) {
                     ESP_LOGI(TAG, "Created a new file; %s", filename);
                 } else {
                     ESP_LOGW(TAG, "Failed to create a new file; %s", filename);
+                    stop();
                 }
             } else {
                 ESP_LOGI(TAG, "Opened existing file; %s", filename);
             }
         } else {
             ESP_LOGW(TAG, "Failed to open existing file; %s", filename);
+            stop();
         }
     }
 
@@ -242,5 +261,4 @@ long SdLogger::findLargestNumberInFilenames(const char* dir, const char* prefix)
     }
     closedir(root);
     return maxNum;
-    return 0;
 }

@@ -711,13 +711,10 @@ int16_t sen66_device_reset() {
     int16_t local_error = NO_ERROR;
     uint8_t* buffer_ptr = communication_buffer;
     uint16_t local_offset = 0;
-    local_offset =
-        sensirion_i2c_add_command16_to_buffer(buffer_ptr, local_offset, 0xd304);
-    local_error =
-        sensirion_i2c_write_data(_i2c_address, buffer_ptr, local_offset);
+    local_offset = sensirion_i2c_add_command16_to_buffer(buffer_ptr, local_offset, 0xd304);
+    local_error = sensirion_i2c_write_data(_i2c_address, buffer_ptr, local_offset);
     if (local_error != NO_ERROR) {
         return local_error;
     }
-    sensirion_i2c_hal_sleep_usec(1200 * 1000);
     return local_error;
 }

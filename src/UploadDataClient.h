@@ -18,6 +18,7 @@ private:
     uint32_t m_port;
     uint8_t m_state;
     bool m_sendRequest;
+    uint32_t m_connectTimer;
     char m_headerBuf[MAX_HEADER_BUF_SIZE];
     char *m_routeToSend;
     char *m_fileToSend;

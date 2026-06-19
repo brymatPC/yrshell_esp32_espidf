@@ -53,9 +53,10 @@ private:
     char m_sendBuf[MAX_SEN66_SEND_BUF_SIZE];
     char m_logBuf[MAX_SEN66_SEND_BUF_SIZE];
 
+    void loadVoc();
     void read();
+    void toJson(char *buf, uint32_t maxLen, bool addLineEnding);
     void logReadings();
-    void uploadReadings();
     void writeReadings();
 
 public:
@@ -71,6 +72,7 @@ public:
     virtual void slice( void);
 
     void setEnabled(bool enable) { m_enabled = enable; }
+    bool enabled() const { return m_enabled; }
 
 };
 
