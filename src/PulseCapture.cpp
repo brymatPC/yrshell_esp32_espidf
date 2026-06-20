@@ -8,7 +8,6 @@
 static const char* TAG = "PulseC ";
 
 static bool captureCallback(mcpwm_cap_channel_handle_t cap_chan, const mcpwm_capture_event_data_t *edata, void *user_data) {
-    static uint32_t lastCapture = 0;
     if(edata->cap_edge == MCPWM_CAP_EDGE_POS) {
         if(user_data) {
             PulseCapture *pulseCapture = ((PulseCapture *) user_data);

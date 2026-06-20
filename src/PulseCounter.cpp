@@ -12,7 +12,7 @@ PulseCounter::PulseCounter(uint8_t pin) :
     m_startTimeUs(0),
     m_initialized(false)
 {
-    m_timer.setInterval(1000);
+    m_timer.setInterval(5000);
 }
 PulseCounter::~PulseCounter() {}
 void PulseCounter::init() {
