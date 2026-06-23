@@ -40,6 +40,7 @@ CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_logQ;
 CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_telnetLogQ;
 AppManager appMgr(s_appName, s_appVersion);
 YRShellEsp32 shell;
+YRShellEsp32 telnetShell;
 LedStripDriver ledStrip;
 BleConnection bleConnection;
 SdLogger sdLogger;
@@ -171,7 +172,7 @@ static void loop(void *pvParameters) {
     }
 
     if( telnetPort != 0) {
-        //telnetServer.init( telnetPort, &shell.getInq(), &shell.getOutq());
+        telnetServer.init( telnetPort, &telnetShell.getInq(), &telnetShell.getOutq());
     }
 
     uploadClient.init();
@@ -188,6 +189,17 @@ static void loop(void *pvParameters) {
     shell.setTelnetLogServer(&telnetLogServer);
     shell.setUploadClient(&uploadClient);
     shell.init();
+
+    telnetShell.setAppMgr(&appMgr);
+    telnetShell.setWifiConnection(&wifiConnection);
+    telnetShell.setBleConnection(&bleConnection);
+    telnetShell.setVictronDevice(&victronParser);
+    telnetShell.setTempHumParser(&tempHumParser);
+    telnetShell.setSen66Device(&sen66Device);
+    telnetShell.setLedStrip(&ledStrip);
+    telnetShell.setTelnetLogServer(&telnetLogServer);
+    telnetShell.setUploadClient(&uploadClient);
+    telnetShell.init();
 
     sdLogger.init(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
     
