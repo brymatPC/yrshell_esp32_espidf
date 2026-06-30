@@ -39,6 +39,7 @@ static const int8_t SD_SCK = 10;
 static const int8_t SD_MISO = 7;
 static const int8_t SD_MOSI = 8;
 static const int8_t SD_CS = 11;
+static const int8_t SD_CD = 9;
 
 CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_logQ;
 CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_telnetLogQ;
@@ -208,7 +209,7 @@ static void loop(void *pvParameters) {
     telnetShell.setUploadClient(&uploadClient);
     telnetShell.init();
 
-    sdLogger.init(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+    sdLogger.init(SD_SCK, SD_MISO, SD_MOSI, SD_CS, SD_CD);
     
     systemStatus.setUploadClient(&uploadClient);
     systemStatus.setSdLogger(&sdLogger);

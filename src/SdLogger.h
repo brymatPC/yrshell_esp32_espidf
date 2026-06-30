@@ -17,7 +17,7 @@ public:
     SdLogger();
     virtual const char* sliceName( void) { return "SdLogger"; }
 
-    void init(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs);
+    void init(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint8_t cd);
     void stop();
     void slice();
 
@@ -25,6 +25,7 @@ public:
 
 private:
     uint8_t m_cs;
+    uint8_t m_cd;
     IntervalTimer m_timer;
     bool m_connected;
     sdmmc_card_t *m_card;

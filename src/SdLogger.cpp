@@ -15,16 +15,18 @@ static const char* TAG = "SDCard ";
 
 SdLogger::SdLogger() :
     m_cs(0),
+    m_cd(0),
     m_connected(false)
 {
     m_timer.setInterval(SD_CONN_CHECK_MS);
 }
 
-void SdLogger::init(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs) {
+void SdLogger::init(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t cs, uint8_t cd) {
     esp_err_t ret;
     ESP_LOGI(TAG, "Initializing SD card");
 
     m_cs = cs;
+    m_cd = cd;
 
     // Use settings defined above to initialize SD card and mount FAT filesystem.
     // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
@@ -122,12 +124,24 @@ void SdLogger::stop() {
 
 void SdLogger::slice() {
     if(m_timer.isNextInterval()) {
-        ESP_LOGI(TAG, "SD Connection check");
-        if(!m_connected) {
-            ESP_LOGI(TAG, "SD card not connected, retrying...");
-            mount();
+        ESP_LOGI(TAG, "SD Connection check", );
+        if(m_cd > 0) {
+            bool detect = gpio_get_level((gpio_num_t) m_cd);
+            ESP_LOGI(TAG, "SD detect is: %s", detect ? "On" : "Off");
+            if(!m_connected && detect) {
+                ESP_LOGI(TAG, "SD card re-inserted, retrying...");
+                mount();
+            } else if(m_connected && !detect) {
+                ESP_LOGW(TAG, "SD card removed, disconnecting");
+                stop();
+            }
+        } else {
             if(!m_connected) {
-                 ESP_LOGW(TAG, "SD card not found");
+                ESP_LOGI(TAG, "SD card not connected, retrying...");
+                mount();
+                if(!m_connected) {
+                    ESP_LOGW(TAG, "SD card not found");
+                }
             }
         }
     }
@@ -184,6 +198,7 @@ void SdLogger::log(const char *filePrefix, const char *record, bool createNew) {
 
     if(!m_connected) return;
 
+    uint32_t start = HW_getMillis();
     char baseDir[128];
     snprintf(baseDir, 128, "%s/", MOUNT_POINT);
 
@@ -232,7 +247,8 @@ void SdLogger::log(const char *filePrefix, const char *record, bool createNew) {
 
     size_t numWritten = fwrite((uint8_t *)record, sizeof(char), strlen(record), file);
     fclose(file);
-    ESP_LOGI(TAG, "Wrote %lu bytes", numWritten);
+    uint32_t elapsed = HW_getMillis() - start;
+    ESP_LOGI(TAG, "Wrote %lu bytes in %lu us", numWritten, elapsed);
 }
 
 long SdLogger::findLargestNumberInFilenames(const char* dir, const char* prefix) {
