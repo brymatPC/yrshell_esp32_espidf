@@ -11,6 +11,8 @@
 #include "Utilities.h"
 #include "TempHumidityParser.h"
 #include "Sen66Device.h"
+#include "PulseCounter.h"
+#include "PulseCapture.h"
 
 // ESP / C Libraries
 #include <stdio.h>
@@ -31,6 +33,8 @@ static char s_appVersion[] = "0.9.0";
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
 
+static const uint8_t PULSE_IN = 6;
+static const uint8_t PULSE_IN_2 = 5;
 static const int8_t SD_SCK = 10;
 static const int8_t SD_MISO = 7;
 static const int8_t SD_MOSI = 8;
@@ -54,6 +58,9 @@ VictronDevice victronParser;
 TempHumidityParser tempHumParser;
 
 Sen66Device sen66Device;
+//PulseCounter pulseCounter(PULSE_IN);
+PulseCapture pulseCapture(PULSE_IN, 0);
+PulseCapture pulseCapture2(PULSE_IN_2, 1);
 
 MultiplexerQ serialMux;
 
@@ -214,6 +221,10 @@ static void loop(void *pvParameters) {
     sen66Device.setUploadClient(&uploadClient);
     sen66Device.setSdLogger(&sdLogger);
 
+    //pulseCounter.init();
+    pulseCapture.init();
+    pulseCapture2.init();
+
     serialMux.init();
     serialMux.set(0, nullptr, &m_logQ);
     serialMux.set(1, &shell.getInq(), &shell.getOutq());
@@ -291,6 +302,8 @@ extern "C" void app_main() {
     esp_log_level_set("Victron", ESP_LOG_WARN);
     esp_log_level_set("THParse", ESP_LOG_WARN);
     esp_log_level_set("Upload ", ESP_LOG_WARN);
+    esp_log_level_set("Pulse  ", ESP_LOG_INFO);
+    esp_log_level_set("PulseC ", ESP_LOG_INFO);
 
     // Other libraries
     esp_log_level_set("wifi", ESP_LOG_WARN);
