@@ -263,7 +263,7 @@ void YRShellEsp32::slice() {
 
 void pinMode(uint32_t pin, gpio_mode_t mode, bool pullup = false) {
   gpio_config_t temp;
-  temp.pin_bit_mask = pin;
+  temp.pin_bit_mask = ((uint64_t) 1) << pin;
   temp.mode = mode;
   temp.pull_up_en = pullup ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
   gpio_config(&temp);

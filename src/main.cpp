@@ -11,6 +11,8 @@
 #include "Utilities.h"
 #include "TempHumidityParser.h"
 #include "Sen66Device.h"
+#include "PulseCounter.h"
+#include "PulseCapture.h"
 #include "AdcDriver.h"
 #include "FrequencyEstimate.h"
 
@@ -33,16 +35,20 @@ static char s_appVersion[] = "0.9.0";
 static const char* TAG = "Main   ";
 TaskHandle_t xHandle = NULL;
 
+static const uint8_t PULSE_IN = 6;
+static const uint8_t PULSE_IN_2 = 5;
 static const int8_t SD_SCK = 10;
 static const int8_t SD_MISO = 7;
 static const int8_t SD_MOSI = 8;
 static const int8_t SD_CS = 11;
+static const int8_t SD_CD = 9;
 
 CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_logQ;
 CircularQ<char, LOCAL_LOG_BUFFER_SIZE> m_telnetLogQ;
 AppManager appMgr(s_appName, s_appVersion);
 AdcDriver adc;
 YRShellEsp32 shell;
+YRShellEsp32 telnetShell;
 LedStripDriver ledStrip;
 BleConnection bleConnection;
 SdLogger sdLogger;
@@ -56,6 +62,9 @@ VictronDevice victronParser;
 TempHumidityParser tempHumParser;
 
 Sen66Device sen66Device;
+//PulseCounter pulseCounter(PULSE_IN);
+PulseCapture pulseCapture(PULSE_IN, 0);
+PulseCapture pulseCapture2(PULSE_IN_2, 1);
 FrequencyEstimate freqEstimator;
 
 MultiplexerQ serialMux;
@@ -176,7 +185,7 @@ static void loop(void *pvParameters) {
     }
 
     if( telnetPort != 0) {
-        //telnetServer.init( telnetPort, &shell.getInq(), &shell.getOutq());
+        telnetServer.init( telnetPort, &telnetShell.getInq(), &telnetShell.getOutq());
     }
 
     uploadClient.init();
@@ -196,7 +205,18 @@ static void loop(void *pvParameters) {
     shell.setSdLogger(&sdLogger);
     shell.init();
 
-    sdLogger.init(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+    telnetShell.setAppMgr(&appMgr);
+    telnetShell.setWifiConnection(&wifiConnection);
+    telnetShell.setBleConnection(&bleConnection);
+    telnetShell.setVictronDevice(&victronParser);
+    telnetShell.setTempHumParser(&tempHumParser);
+    telnetShell.setSen66Device(&sen66Device);
+    telnetShell.setLedStrip(&ledStrip);
+    telnetShell.setTelnetLogServer(&telnetLogServer);
+    telnetShell.setUploadClient(&uploadClient);
+    telnetShell.init();
+
+    sdLogger.init(SD_SCK, SD_MISO, SD_MOSI, SD_CS, SD_CD);
     
     systemStatus.setUploadClient(&uploadClient);
     systemStatus.setSdLogger(&sdLogger);
@@ -208,6 +228,10 @@ static void loop(void *pvParameters) {
     sen66Device.setup();
     sen66Device.setUploadClient(&uploadClient);
     sen66Device.setSdLogger(&sdLogger);
+
+    //pulseCounter.init();
+    pulseCapture.init();
+    pulseCapture2.init();
 
     adc.setSdLogger(&sdLogger);
     freqEstimator.setInQ(adc.getOutQ(0));
@@ -283,10 +307,14 @@ extern "C" void app_main() {
     esp_log_level_set("Perf   ", ESP_LOG_INFO);
     esp_log_level_set("SDCard ", ESP_LOG_INFO);
     esp_log_level_set("MuxQ   ", ESP_LOG_WARN);
+
+    // Optional Modules
     esp_log_level_set("Sen66  ", ESP_LOG_WARN);
     esp_log_level_set("Victron", ESP_LOG_WARN);
     esp_log_level_set("THParse", ESP_LOG_WARN);
     esp_log_level_set("Upload ", ESP_LOG_WARN);
+    esp_log_level_set("Pulse  ", ESP_LOG_INFO);
+    esp_log_level_set("PulseC ", ESP_LOG_INFO);
     esp_log_level_set("AdcDrv ", ESP_LOG_INFO);
     esp_log_level_set("FreqEst", ESP_LOG_INFO);
 

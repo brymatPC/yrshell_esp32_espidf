@@ -13,6 +13,8 @@ idf_component_register( SRCS
                             "SystemStatus.cpp"
                             "TempHumidityParser.cpp"
                             "Sen66Device.cpp"
+                            "PulseCounter.cpp"
+                            "PulseCapture.cpp"
                             "AdcDriver.cpp"
                             "FrequencyEstimate.cpp"
                         PRIV_REQUIRES
@@ -27,6 +29,8 @@ idf_component_register( SRCS
                             sdmmc
                             mbedtls
                             esp_app_format
+                            esp_driver_pcnt
+                            esp_driver_mcpwm
                             espUtilities
                             yrShell
                             sensirionI2C

@@ -33,7 +33,7 @@
 #define ESP_LOGV( tag, format, ... ) ESP_LOG_LEVEL_LOCAL(ESP_LOG_VERBOSE, tag, CUSTOM_LOG_FORMAT(V, format) __VA_OPT__(,) __VA_ARGS__)
 
 #define CUSTOM_LOG_FORMAT(letter, format)				\
-  "[%s:%u] %s(): " format ,  \
+  "[%s:%u] %s(): " format "\r",  \
     __FILE__, __LINE__, __FUNCTION__
 
 #endif // ESP_LOG_CUSTOM_H
