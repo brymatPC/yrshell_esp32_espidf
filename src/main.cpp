@@ -14,7 +14,6 @@
 #include "PulseCounter.h"
 #include "PulseCapture.h"
 #include "AdcDriver.h"
-#include "FrequencyEstimate.h"
 
 // ESP / C Libraries
 #include <stdio.h>
@@ -65,7 +64,6 @@ Sen66Device sen66Device;
 //PulseCounter pulseCounter(PULSE_IN);
 PulseCapture pulseCapture(PULSE_IN, 0);
 PulseCapture pulseCapture2(PULSE_IN_2, 1);
-FrequencyEstimate freqEstimator;
 
 MultiplexerQ serialMux;
 
@@ -234,7 +232,6 @@ static void loop(void *pvParameters) {
     pulseCapture2.init();
 
     adc.setSdLogger(&sdLogger);
-    freqEstimator.setInQ(adc.getOutQ(0));
 
     serialMux.init();
     serialMux.set(0, nullptr, &m_logQ);
@@ -296,7 +293,7 @@ extern "C" void app_main() {
 
     esp_log_set_vprintf(custom_log_handler);
 
-    esp_log_level_set("*", ESP_LOG_INFO); 
+    esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("Main   ", ESP_LOG_INFO);
     esp_log_level_set("AppMgr ", ESP_LOG_INFO);
     esp_log_level_set("LedStr ", ESP_LOG_INFO);
@@ -316,7 +313,6 @@ extern "C" void app_main() {
     esp_log_level_set("Pulse  ", ESP_LOG_INFO);
     esp_log_level_set("PulseC ", ESP_LOG_INFO);
     esp_log_level_set("AdcDrv ", ESP_LOG_INFO);
-    esp_log_level_set("FreqEst", ESP_LOG_INFO);
 
     // Other libraries
     esp_log_level_set("wifi", ESP_LOG_WARN);

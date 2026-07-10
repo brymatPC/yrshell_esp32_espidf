@@ -16,7 +16,6 @@ idf_component_register( SRCS
                             "PulseCounter.cpp"
                             "PulseCapture.cpp"
                             "AdcDriver.cpp"
-                            "FrequencyEstimate.cpp"
                         PRIV_REQUIRES
                             nvs_flash
                             spi_flash
