@@ -22,9 +22,9 @@ PulseCapture::PulseCapture(uint8_t pin, uint8_t group) :
     m_group(group),
     m_handle(NULL),
     m_apbFreq(1),
-    m_initialized(false),
     m_lastCapture(0),
     m_captureIndex(0),
+    m_initialized(false),
     m_numCaptures(0)
 {
     memset(m_captures, 0, MAX_NUM_CAPTURES * sizeof(uint32_t));
@@ -90,10 +90,15 @@ void PulseCapture::init() {
 void PulseCapture::slice() {
     if(!m_initialized) return;
     if(m_timer.isNextInterval()) {
-        float freq = calculateFrequency();
+        float freq = 0.0f;
         uint32_t numCaptures = m_numCaptures;
         m_numCaptures = 0;
-        ESP_LOGI(TAG, "%d - Est freq %.2f, numCaptures %d", m_group, freq, numCaptures);
+        if(numCaptures > 0) {
+            freq = calculateFrequency();
+        } else {
+            resetCaptures();
+        }
+        ESP_LOGI(TAG, "%d - Est freq %.2f, numCaptures %lu", m_group, freq, numCaptures);
     }
 }
 
@@ -102,9 +107,13 @@ float PulseCapture::calculateFrequency() {
     for(uint32_t i=0; i < MAX_NUM_CAPTURES; i++) {
         averageInterval += m_captures[i];
     }
-    float average = ((float) averageInterval) / ((float) MAX_NUM_CAPTURES);
-    float clkFreq = (float) m_apbFreq;
-    return clkFreq / average;
+    if(averageInterval > 0) {
+        float average = ((float) averageInterval) / ((float) MAX_NUM_CAPTURES);
+        float clkFreq = (float) m_apbFreq;
+        return clkFreq / average;
+    } else {
+        return 0;
+    }
 }
 
 void PulseCapture::captureCallbackIsr(uint32_t capValue) {
@@ -115,4 +124,8 @@ void PulseCapture::captureCallbackIsr(uint32_t capValue) {
         m_captureIndex = 0;
     }
     m_numCaptures++;
+}
+void PulseCapture::resetCaptures() {
+    memset(m_captures, 0, MAX_NUM_CAPTURES * sizeof(uint32_t));
+    m_captureIndex = 0;
 }

@@ -15,20 +15,22 @@ private:
     mcpwm_cap_timer_handle_t m_handle;
     mcpwm_cap_channel_handle_t m_chanHandle;
     uint32_t m_apbFreq;
-    bool m_initialized;
-    IntervalTimer m_timer;
 
     uint32_t m_lastCapture;
     uint32_t m_captures[MAX_NUM_CAPTURES];
     uint32_t m_captureIndex;
-    uint32_t m_numCaptures;
 
+protected:
+    bool m_initialized;
+    uint32_t m_numCaptures;
+    IntervalTimer m_timer;
     float calculateFrequency();
+    void resetCaptures();
 public:
     PulseCapture(uint8_t pin, uint8_t group = 0);
     virtual ~PulseCapture();
     virtual const char* sliceName( void) { return "PulseCapture"; }
-    void init();
+    virtual void init();
     virtual void slice( void);
 
     // ISR Context
